@@ -18,14 +18,20 @@ window.connect = function () {
     var socket = new WebSocket('ws://' + window.location.host);
     connection.bindToSocket(socket);
 };
-
+var xmlWrapper = null;
 var doc = connection.get('test', 'xml-enc');
-doc.subscribe(function (err) {
-    if(err)
-        throw err;
+new Promise((resolve, reject) => {
+    doc.subscribe(function (err) {
+        if(err){
+            reject(err);
+        }else{
+            resolve(doc);
+        }
+    });
+}).then((doc) => {
+    xmlWrapper =  new XmlWrapper(doc);
 });
 
-var xmlWrapper = new XmlWrapper(doc);
 
 export class OtExtender extends Module{
     constructor (quill, options){

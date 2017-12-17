@@ -1,6 +1,7 @@
 import Delta from 'quill-delta';
 import XmlDom from 'xmldom';
 import Block from './block';
+import xmlEnc from 'xml-enc/lib/type';
 
 var xmlParser = new XmlDom.DOMParser();
 var xmlSerializer = new XmlDom.XMLSerializer();
@@ -9,31 +10,42 @@ var xmlSerializer = new XmlDom.XMLSerializer();
 export default class XmlWrapper{
     constructor(doc){
         this.doc = doc;
-        this.xmlDoc = null;
+        this.xmlDoc =  xmlParser.parseFromString(doc.data, 'application/xml');
         this._MAX_BLOCK_SIZE = 10;
     }
 
-    quillTextChanged(delta, doc){
-        this.xmlDoc = xmlParser.parseFromString(doc.data, 'application/xml');
-        let documentElement = this._getDocumentElement(this.xmlDoc);
+    quillTextChanged(delta){
+        let documentElement = this._getDocumentElement();
         let myDelta = new Delta(delta);
         let offset = 0;
         let ops = [];
         myDelta.forEach(function (op) {
             if(typeof op['delete'] === 'number'){
                 Array.prototype.push.apply(ops, this._deleteText(op.delete, documentElement, offset));
+                offset -= op.delete;
             }else if(typeof op.retain === 'number'){
                 offset += op.retain;
             }else {
-                Array.prototype.push.apply(ops, this._insertText(op.insert, documentElement, offset));
+                let opsResult = this._insertText(op.insert, documentElement, offset);
+                Array.prototype.push.apply(ops, opsResult);
+                offset += op.insert.length;
             }
         }.bind(this));
-        doc.submitOp(ops, function (err) {
+        this.doc.submitOp(ops, function (err) {
             if(err){
                 throw new err;
             }
         });
 
+    }
+
+    get documentText(){
+        let result = '';
+        let documentElement = this._getDocumentElement();
+        for(let i = 0; i < documentElement.childNodes.length; i++){
+            result += documentElement.childNodes[i].getElementsByTagName('data').item(0).textContent;
+        }
+        return result;
     }
 
     /**
@@ -58,11 +70,13 @@ export default class XmlWrapper{
         let result = [];
         let deletedBlocks = 0;
         while(tmpCount > 0){
+            if(block == null)
+                break;
             if(cursorPos == 0 && tmpCount >= block.length){ // in this case we can delete the entire block
                 result.push({p: block.blockPos - deletedBlocks, op: 'd'});
                 tmpCount -= block.length;
                 block.deleteBlock();
-            }else if(cursorPos + tmpCount <= this._MAX_BLOCK_SIZE){
+            }else if(cursorPos + tmpCount <= block.length){
                 block.data = block.data.substr(0, cursorPos) + block.data.substr(cursorPos + tmpCount);
                 tmpCount = 0;
                 result.push({p: block.blockPos - deletedBlocks, op: 'r', data: xmlSerializer.serializeToString(block.block)});
@@ -114,6 +128,13 @@ export default class XmlWrapper{
             block.data = newText;
             result.push({p: block.blockPos, op: block.op, data: xmlSerializer.serializeToString(block.block)});
         }
+        //change the local document
+        for(let i = 0; i < result.length; i++){
+            if(result[i].op == 'a')
+                xmlEnc.addBlock(documentElement,result[i].p, result[i].data);
+            else if(result[i].op == 'r')
+                xmlEnc.replaceBlock(documentElement, result[i].p, result[i].data);
+        }
         return result;
     }
 
@@ -161,8 +182,8 @@ export default class XmlWrapper{
      * @returns {Element} returns the document node from the entire document
      * @private
      */
-    _getDocumentElement(xmlDoc){
-        return xmlDoc.documentElement.getElementsByTagName("document").item(0);
+    _getDocumentElement(){
+        return this.xmlDoc.documentElement.getElementsByTagName("document").item(0);
     }
 
     /**
@@ -185,4 +206,7 @@ export default class XmlWrapper{
         return result;
     }
 
+    get MAX_BLOCK_SIZE(){
+        return this._MAX_BLOCK_SIZE;
+    }
 }

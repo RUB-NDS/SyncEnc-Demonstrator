@@ -43,7 +43,7 @@ export default class Block{
     }
 
     get length(){
-        return this.element.getElementsByTagName('length').item(0).textContent;
+        return parseInt(this.element.getElementsByTagName('length').item(0).textContent);
     }
 
     set length(length){
