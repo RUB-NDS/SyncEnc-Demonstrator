@@ -28,8 +28,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('insert more than one full block', function () {
             let doc = new Doc(initialDoc)
             let xmlWrapper = new XmlWrapper(doc);
-            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE +
-                (Math.floor(Math.random() * 100 + 1))));
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE +randomUnsignedInt(1,100)));
             xmlWrapper.quillTextChanged(delta);
             assert.equal(xmlWrapper.documentText, delta.ops[0].insert);
         });

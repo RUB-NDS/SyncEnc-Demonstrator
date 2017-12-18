@@ -1,5 +1,8 @@
 import xmlEnc from 'xml-enc/lib/type';
 
+/**
+ * Represents the document for testing purpose
+ */
 export default class Doc{
     constructor(snapshot){
         this._snapshot = snapshot;
