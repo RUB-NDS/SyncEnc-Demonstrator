@@ -1,4 +1,3 @@
-import Delta from 'quill-delta';
 import Module from 'quill/core/module';
 import xmlEnc from 'xml-enc';
 import sharedb from 'sharedb/lib/client';
@@ -20,6 +19,8 @@ window.connect = function () {
 };
 var xmlWrapper = null;
 var doc = connection.get('test', 'xml-enc');
+xmlWrapper =  new XmlWrapper(doc);
+
 new Promise((resolve, reject) => {
     doc.subscribe(function (err) {
         if(err){
@@ -29,7 +30,12 @@ new Promise((resolve, reject) => {
         }
     });
 }).then((doc) => {
-    xmlWrapper =  new XmlWrapper(doc);
+    xmlWrapper.reloadXml(); //reload the document
+    xmlWrapper.reloadText(); //reload the text within quill
+    doc.on('op', function (op, source) {
+       if(source === 'quill') return;
+       xmlWrapper.remoteUpdate(op);
+    });
 });
 
 
@@ -40,13 +46,25 @@ export class OtExtender extends Module{
         this.options = options;
         this.container = document.querySelector(options.container);
         quill.on('text-change', this.update.bind(this));
+        xmlWrapper.on('remote-update', this.remoteUpdate.bind(this));
+        xmlWrapper.on('reload-text', this.reloadText.bind(this));
     }
 
     update(delta, oldDelta, source){
+        if(source !== 'user') return;
         console.log(delta);
         xmlWrapper.quillTextChanged(delta, doc);
         console.log(doc.data);
     }
+
+    remoteUpdate(op){
+        console.log('Quill remoteUpdate: ' + op);
+    }
+
+    reloadText(delta){
+        this.quill.setContents(delta, 'api');
+    }
+
 }
 
 if (window.Quill) {
