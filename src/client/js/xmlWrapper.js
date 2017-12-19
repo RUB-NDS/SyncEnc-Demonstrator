@@ -2,16 +2,17 @@ import Delta from 'quill-delta';
 import XmlDom from 'xmldom';
 import Block from './block';
 import xmlEnc from 'xml-enc/lib/type';
+import { EventEmitter } from 'eventemitter3';
 
 var xmlParser = new XmlDom.DOMParser();
 var xmlSerializer = new XmlDom.XMLSerializer();
-
 
 export default class XmlWrapper{
     constructor(doc){
         this.doc = doc;
         this.xmlDoc =  xmlParser.parseFromString(doc.data, 'application/xml');
         this._MAX_BLOCK_SIZE = 10;
+        this.emitter = new EventEmitter();
     }
 
     quillTextChanged(delta){
@@ -31,12 +32,36 @@ export default class XmlWrapper{
                 offset += op.insert.length;
             }
         }.bind(this));
-        this.doc.submitOp(ops, function (err) {
-            if(err){
-                throw new err;
-            }
-        });
+        this.doc.submitOp(ops, {source: "quill"});
+    }
 
+    remoteUpdate(op){
+        let resultDelta = new Delta();
+        let documentElement = this._getDocumentElement();
+        op.forEach(function (op) {
+            let tmpBlock = new Block(0,0,0,op);
+            let oldBlock = new Block(0,0,0, documentElement.childNodes.item(tmpBlock.pos));
+            let delta = new Delta().retain(this._getBlockOffset(documentElement, op.p))
+                                    .insert(tmpBlock.data).delete(oldBlock.length);
+
+            console.log("pos: " + op.p + "offset :");
+        }.bind(this));
+        console.log("DATA:" + this.doc.data);
+        console.log("XMLD" + xmlSerializer.serializeToString(this.xmlDoc));
+        this.emitter.emit('remote-update', resultDelta);
+    }
+
+    on(){
+        return this.emitter.on.apply(this.emitter, arguments);
+    }
+
+    reloadXml(){
+        this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
+    }
+
+    reloadText(){
+        let delta = new Delta().insert(this.documentText);
+        this.emitter.emit('reload-text', delta);
     }
 
     get documentText(){
@@ -46,6 +71,16 @@ export default class XmlWrapper{
             result += documentElement.childNodes[i].getElementsByTagName('data').item(0).textContent;
         }
         return result;
+    }
+
+    _getBlockOffset(documentElement, pos){
+        let offset = 0;
+        let tmpBlock = null;
+        for(let i = 0; i < pos - 1; i++){
+            tmpBlock = new Block(i, offset,0,documentElement.childNodes.item(i));
+            offset += tmpBlock.length;
+        }
+        return offset;
     }
 
     /**
