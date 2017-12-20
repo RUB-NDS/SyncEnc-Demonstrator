@@ -7,9 +7,9 @@ export default class RemoteDataBlock{
             this._op = op;
             this.xmlBlock = xmlDataBlock;
         }else{
-            this.pos = remoteBlock.pos;
-            this.op = remoteBlock.op;
-            this.xmlBlock = new XmlDataBlock(remoteBlock.data);
+            this.pos = pos.p;
+            this.op = pos.op;
+            this.xmlBlock = new XmlDataBlock(pos.data);
         }
     }
 
@@ -30,7 +30,7 @@ export default class RemoteDataBlock{
     }
 
     get length (){
-        this.xmlBlock.length;
+        return this.xmlBlock.length;
     }
 
     set text(value){

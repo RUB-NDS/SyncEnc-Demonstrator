@@ -5,7 +5,7 @@ export default class xmlDataCollection{
         this.document = documentElement;
         this.dataBlockList = [];
         for(let i = 0; i < documentElement.childNodes.length; i++){
-            this.dataBlockList.append(new XmlDataBlock(documentElement.childNodes.item(i)));
+            this.dataBlockList.push(new XmlDataBlock(documentElement.childNodes.item(i)));
         }
     }
 
@@ -41,7 +41,7 @@ export default class xmlDataCollection{
         let blockOffset = 0;
         let i = 0;
         for (; i < this.dataBlockList.length; i++) {
-            if (blockOffset + this.dataBlockList[i].length > offset) {
+            if (blockOffset + this.dataBlockList[i].length >= offset) {
                 return i;
             }
             blockOffset += this.dataBlockList[i].length;

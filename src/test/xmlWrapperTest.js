@@ -12,6 +12,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('insert a single character', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
             let delta = new Delta().insert('a');
             xmlWrapper.quillTextChanged(delta);
             assert.equal(xmlWrapper.documentText, delta.ops[0].insert);
@@ -20,6 +21,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('insert a full block of characters (xml block should be filled with the insert)', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
             let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE));
             xmlWrapper.quillTextChanged(delta);
             assert.equal(xmlWrapper.documentText, delta.ops[0].insert);
@@ -28,6 +30,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('insert more than one full block', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
             let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE +randomUnsignedInt(1,100)));
             xmlWrapper.quillTextChanged(delta);
             assert.equal(xmlWrapper.documentText, delta.ops[0].insert);
@@ -40,6 +43,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             for(let i = 0; i < 1000; i++){
                 doc = new Doc(initialDoc);
                 xmlWrapper = new XmlWrapper(doc);
+                xmlWrapper.reloadXml();
                 deltaResult = new Delta();
                 let delta = new Delta().insert(randomString(Math.floor(Math.random() * 10 + 1)));
                 xmlWrapper.quillTextChanged(delta);
@@ -51,6 +55,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('insert character somewhere', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
             let deltaResult = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE +randomUnsignedInt(1,100)));
             xmlWrapper.quillTextChanged(deltaResult);
             let delta = new Delta().retain(randomUnsignedInt(1,xmlWrapper.MAX_BLOCK_SIZE)).insert("0");
@@ -65,6 +70,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it("delete a character at pos 2", function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
             let deltaResult = new Delta().insert("Thiis");
             let delta = new Delta().retain(2).delete(1);
             xmlWrapper.quillTextChanged(deltaResult);
@@ -77,6 +83,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             for(var i = 0; i < 1000; i++) {
                 let doc = new Doc(initialDoc)
                 let xmlWrapper = new XmlWrapper(doc);
+                xmlWrapper.reloadXml();
                 let text = randomString(randomUnsignedInt(1, 100));
                 let deltaResult = new Delta().insert(text);
                 let startPos = randomUnsignedInt(0, text.length - 1);
@@ -101,6 +108,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             for(var i = 0; i < 100; i++){
                 let doc = new Doc(initialDoc);
                 let xmlWrapper = new XmlWrapper(doc);
+                xmlWrapper.reloadXml();
                 let text = randomString(randomUnsignedInt(50,100));
                 let input = new Delta().insert(text);
                 let deltaResult = new Delta(input);

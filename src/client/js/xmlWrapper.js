@@ -3,19 +3,16 @@ import XmlDom from 'xmldom';
 import XmlDataCollection from './xmlDataCollection';
 import RemoteDataBlock from './remoteDataBlock';
 import XmlDataBlock from './xmlDataBlock';
-import Block from './block';
-import xmlEnc from 'xml-enc/lib/type';
 import { EventEmitter } from 'eventemitter3';
 
 var xmlParser = new XmlDom.DOMParser();
-
 var xmlSerializer = new XmlDom.XMLSerializer();
 
 export default class XmlWrapper{
     constructor(doc){
         this.doc = doc;
-        this.xmlDoc =  xmlParser.parseFromString(doc.data, 'application/xml');
-        this.xmlDataCollection = new XmlDataCollection(this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
+        this.xmlDoc = null;
+        this.xmlDataCollection = null;
         this._MAX_BLOCK_SIZE = 10;
         this.emitter = new EventEmitter();
     }
@@ -41,14 +38,21 @@ export default class XmlWrapper{
 
     remoteUpdate(op){
         let resultDelta = new Delta();
-        let documentElement = this._getDocumentElement();
         op.forEach(function (op) {
-            let tmpBlock = new Block(0,0,0,op);
-            let oldBlock = new Block(0,0,0, documentElement.childNodes.item(tmpBlock.pos));
-            let delta = new Delta().retain(this._getBlockOffset(documentElement, op.p))
-                                    .insert(tmpBlock.data).delete(oldBlock.length);
+            let remoteDataBlock = new RemoteDataBlock(op);
+            switch (remoteDataBlock.op){
+                case 'a':
+                    resultDelta = resultDelta.compose(this._insertTextInQuill(remoteDataBlock));
+                    break;
+                case 'r':
+                    resultDelta = resultDelta.compose(this._replaceTextInQuill(remoteDataBlock));
+                    break;
+                case 'd':
+                    resultDelta = resultDelta.compose(this._deleteTextInQuill(remoteDataBlock));
+                    break;
+            }
 
-            console.log("pos: " + op.p + "offset :");
+            console.log("pos: " + remoteDataBlock.pos + "offset :" + this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos));
         }.bind(this));
         console.log("DATA:" + this.doc.data);
         console.log("XMLD" + xmlSerializer.serializeToString(this.xmlDoc));
@@ -61,6 +65,7 @@ export default class XmlWrapper{
 
     reloadXml(){
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
+        this.xmlDataCollection = new XmlDataCollection(this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
     }
 
     reloadText(){
@@ -70,16 +75,6 @@ export default class XmlWrapper{
 
     get documentText(){
         return this.xmlDataCollection.textContent;
-    }
-
-    _getBlockOffset(documentElement, pos){
-        let offset = 0;
-        let tmpBlock = null;
-        for(let i = 0; i < pos - 1; i++){
-            tmpBlock = new Block(i, offset,0,documentElement.childNodes.item(i));
-            offset += tmpBlock.length;
-        }
-        return offset;
     }
 
     /**
@@ -163,7 +158,6 @@ export default class XmlWrapper{
         return result;
     }
 
-
     /**
      * splits the given text into n blocks
      * @param text text that should be split
@@ -200,6 +194,31 @@ export default class XmlWrapper{
         if(!firstBlock)
             result[0].op = 'r';
         return result;
+    }
+
+    _insertTextInQuill(remoteDataBlock){
+        let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
+        let delta = new Delta().retain(dataBlockOffset).insert(remoteDataBlock.text);
+        this.xmlDataCollection.insertAtIndex(remoteDataBlock.xmlBlock, remoteDataBlock.pos);
+        return delta;
+    }
+
+    _deleteTextInQuill(remoteDataBlock){
+        let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
+        let localDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(remoteDataBlock.pos);
+        let delta = new Delta().retain(dataBlockOffset).delete(localDataBlock.length);
+        this.xmlDataCollection.deleteAtIndex(remoteDataBlock.pos);
+        return delta;
+    }
+
+    _replaceTextInQuill(remoteDataBlock){
+        let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
+        let localDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(remoteDataBlock.pos);
+        let delta = new Delta() .retain(dataBlockOffset)
+                                .insert(remoteDataBlock.text)
+                                .delete(localDataBlock.length);
+        this.xmlDataCollection.replaceAtIndex(remoteDataBlock.xmlBlock, remoteDataBlock.pos);
+        return delta;
     }
 
     get MAX_BLOCK_SIZE(){

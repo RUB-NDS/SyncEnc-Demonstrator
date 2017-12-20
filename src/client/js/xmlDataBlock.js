@@ -7,7 +7,10 @@ var xmlDoc = new XmlDom.DOMImplementation().createDocument("","",null);
 export default class XmlBlock{
     constructor(xmlBlock){
         if(xmlBlock)
-            this.xmlElement = xmlParser(xmlBlock);
+            if(typeof xmlBlock === 'string' || xmlBlock instanceof String)
+                this.xmlElement = xmlParser.parseFromString(xmlBlock, 'application/xml');
+            else
+                this.xmlElement = xmlBlock;
         else
             this.xmlElement = this._createEmptyBlockElement();
     }

@@ -2,6 +2,7 @@ import Module from 'quill/core/module';
 import xmlEnc from 'xml-enc';
 import sharedb from 'sharedb/lib/client';
 import XmlWrapper from './xmlWrapper';
+import Delta from 'quill-delta';
 
 sharedb.types.register(xmlEnc.type);
 
@@ -58,7 +59,8 @@ export class OtExtender extends Module{
     }
 
     remoteUpdate(op){
-        console.log('Quill remoteUpdate: ' + op);
+        let delta = new Delta(op);
+        this.quill.updateContents(delta);
     }
 
     reloadText(delta){
