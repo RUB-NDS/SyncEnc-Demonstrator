@@ -143,9 +143,9 @@ export default class XmlWrapper{
     _insertText(input, offset){
         let xmlDataBlockPos = this.xmlDataCollection.getXmlDataBlockPositionByTextOffset(offset);
         let xmlDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(xmlDataBlockPos);
-        let firstBlock = false;
+        let isNewBlock = false;
         if(xmlDataBlock == null){
-            firstBlock = true;
+            isNewBlock = true;
             xmlDataBlock = new XmlDataBlock();
         }
         let xmlDataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(xmlDataBlockPos);
@@ -153,7 +153,26 @@ export default class XmlWrapper{
         if(xmlDataBlockOffset + xmlDataBlock.length < offset){
             throw new Error('Insert is out of bounds!');
         }
+        if(input.attributes){
+            if(xmlDataBlock.compareAttributes(input.attributes)){
+                return this._insertTextWithSameAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock,
+                    xmlDataBlockPos, isNewBlock);
+            }else{
+                return this._insertTextWithDifferentAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock,
+                    xmlDataBlockPos, isNewBlock)
+            }
+        }else{
+            if(xmlDataBlock.getAttributes() === null){
+                return this._insertTextWithSameAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock,
+                    xmlDataBlockPos, isNewBlock);
+            }else{
+                return this._insertTextWithDifferentAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock,
+                    xmlDataBlockPos, isNewBlock)
+            }
+        }
+    }
 
+    _insertTextWithSameAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock, xmlDataBlockPos, isNewBlock){
         let textPos = offset - xmlDataBlockOffset; //position within the block
         let newText = xmlDataBlock.text.slice(0, textPos); //keep the first characters
         newText += input.insert; //add new text
@@ -165,7 +184,36 @@ export default class XmlWrapper{
                 result[i].xmlDataBlock.setAttributes(attributes);
             }
         }
-        if(!firstBlock){
+        if(!isNewBlock){
+            result[0].op = 'r';
+        }
+        return result;
+    }
+
+    _insertTextWithDifferentAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock, xmlDataBlockPos, isNewBlock){
+        let textPos = offset - xmlDataBlockOffset; //position within the block
+        let result = [];
+        //keep the first characters
+        let newText = xmlDataBlock.text.slice(0, textPos);
+        if(newText.length != 0){
+            result.push(this._createRemoteDataBlock(newText, xmlDataBlockPos, xmlDataBlock.getAttributes()));
+        }
+        //add the new characters with formatting
+        let tmpResult = this._splitBlock(input.insert, xmlDataBlockPos + result.length);
+        if(input.attributes){
+            for(let i = 0; i < tmpResult.length; i++){
+                tmpResult[i].xmlDataBlock.setAttributes(input.attributes);
+            }
+        }
+        Array.prototype.push.apply(result,tmpResult);
+
+        //keep the old characters
+        newText = xmlDataBlock.text.slice(textPos, xmlDataBlock.length);
+        if(newText.length != 0){
+            result.push(this._createRemoteDataBlock(newText, xmlDataBlockPos + result.length, xmlDataBlock.getAttributes()))
+        }
+
+        if(!isNewBlock){
             result[0].op = 'r';
         }
         return result;
@@ -309,6 +357,14 @@ export default class XmlWrapper{
                                 .delete(localDataBlock.length);
         this.xmlDataCollection.replaceAtIndex(remoteDataBlock._xmlBlock, remoteDataBlock.pos);
         return delta;
+    }
+
+    _createRemoteDataBlock(text, pos, attributes){
+        let xmlDataBlock = new XmlDataBlock();
+        xmlDataBlock.setAttributes(attributes);
+        let xmlRemoteDataBlock = new RemoteDataBlock(pos, 'a', xmlDataBlock);
+        xmlRemoteDataBlock.text = text;
+        return xmlRemoteDataBlock;
     }
 
     get MAX_BLOCK_SIZE(){

@@ -1,7 +1,7 @@
 import XmlDataBlock from './xmlDataBlock';
 
 export default class RemoteDataBlock{
-    constructor(pos, op , xmlDataBlock, remoteBlock){
+    constructor(pos, op , xmlDataBlock){
         if(!isNaN(pos)){
             this._pos = pos;
             this._op = op;

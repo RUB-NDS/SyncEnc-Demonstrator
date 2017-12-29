@@ -74,6 +74,25 @@ export default class XmlBlock{
             return null;
     }
 
+    compareAttributes(attributeList){
+        let attributes = this.getAttributes();
+        if(Object.keys(attributeList).length === 0 && attributes === null)
+            return true;
+        if((Object.keys(attributeList).length > 0 && attributes === null)
+            || Object.keys(attributeList).length != Object.keys(attributes).length)
+            return false;
+
+        for(let key in attributeList){
+            if(!attributes[key]) {
+                return false;
+            } else {
+                if(attributes[key] != attributeList[key])
+                    return false;
+            }
+        }
+        return true;
+    }
+
     clone(){
         let resultDataBlock = new XmlBlock();
         resultDataBlock.text = this.text;
