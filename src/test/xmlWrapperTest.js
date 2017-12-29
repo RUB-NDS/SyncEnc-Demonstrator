@@ -63,6 +63,15 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             deltaResult = deltaResult.compose(delta);
             assert.equal(xmlWrapper.documentText, deltaResult.ops[0].insert);
         });
+
+        it('insert character with attribute', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert('A', {bold: true});
+            xmlWrapper.quillTextChanged(delta);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, delta);
+        });
     });
 
     describe('delete test', function () {
@@ -93,11 +102,14 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
                 let delta = new Delta().retain(startPos).delete(deleteCount);
                 xmlWrapper.quillTextChanged(deltaResult);
                 xmlWrapper.quillTextChanged(delta);
+                let errorMsg = generateInfoMessage(deltaResult, deltaResult.compose(delta), xmlWrapper.documentText,
+                    delta);
                 deltaResult = deltaResult.compose(delta);
+
                 if(deltaResult.ops[0] === undefined)
-                    assert.equal(xmlWrapper.documentText, '');
+                    assert.equal(xmlWrapper.documentText, '', errorMsg);
                 else
-                    assert.equal(xmlWrapper.documentText, deltaResult.ops[0].insert);
+                    assert.equal(xmlWrapper.documentText, deltaResult.ops[0].insert, errorMsg);
             }
         });
     });
@@ -126,6 +138,36 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
                 assert.equal(xmlWrapper.documentText, deltaResult.ops[0].insert, msg);
             }
         });
+    });
+
+    describe('formatting changed' ,function () {
+        it('list formatting',function () {
+            let deltaResult = new Delta();
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let op1 = new Delta().insert('a');
+            xmlWrapper.quillTextChanged(op1);
+            let op2 = new Delta().insert('\n');
+            xmlWrapper.quillTextChanged(op2);
+            let op3 = new Delta().retain(1, {list: "ordered"});
+            xmlWrapper.quillTextChanged(op3);
+            let op4 = new Delta().insert('k');
+            xmlWrapper.quillTextChanged(op4);
+            let op5 = new Delta().retain(1).insert('\n', {list: "ordered"});
+            xmlWrapper.quillTextChanged(op5);
+            let op6 = new Delta().retain(2).retain(1, {list: null});
+            xmlWrapper.quillTextChanged(op6);
+            let op7 = new Delta().retain(1).delete(1);
+            let op8 = new Delta().retain(1).retain(1, {list: "ordered"});
+            xmlWrapper.quillTextChanged(op7);
+            xmlWrapper.quillTextChanged(op8);
+            deltaResult = deltaResult.compose(op1).compose(op2).compose(op3).compose(op4).compose(op5).compose(op6)
+                .compose(op7).compose(op8);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, deltaResult);
+        });
+
+
     });
 });
 
@@ -164,11 +206,11 @@ var deltaPrint = function (delta) {
     var msg = "";
     for(let i = 0; i < delta.ops.length; i++){
         if(delta.ops[i].retain)
-            msg += "retain: " + delta.ops[i].retain + ", ";
+            msg += "retain: " + delta.ops[i].retain + " ";
         if(delta.ops[i].insert)
-            msg += "insert: " + delta.ops[i].insert + ", ";
+            msg += "insert: " + delta.ops[i].insert + " ";
         if(delta.ops[i].delete)
-            msg += "delete: " + delta.ops[i].delete + ", ";
+            msg += "delete: " + delta.ops[i].delete + " ";
     }
     return msg;
 }

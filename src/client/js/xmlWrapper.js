@@ -238,29 +238,27 @@ export default class XmlWrapper{
             countBlocks++;
         }
 
-        //go through the changes cursorPos to offset and save the text
-        text = "";
-        for(let index in xmlDataBlockList){
-            if(cursorPos + count > xmlDataBlockList[index].length){
-                text += xmlDataBlockList[index].text.substr(cursorPos, xmlDataBlockList[index].length);
-                count -= (xmlDataBlockList[index].length - cursorPos);
+        for(let index in xmlDataBlockList) {
+            let currentBlock = xmlDataBlockList[index];
+            let tmpRemoteDataBlock = null;
+            let text = "";
+            if (cursorPos + count > currentBlock.length) {
+                text = currentBlock.text.substr(cursorPos, xmlDataBlockList[index].length);
+                count -= (currentBlock.length - cursorPos);
+                tmpRemoteDataBlock = this._createRemoteDataBlock(text, countBlocks, currentBlock.getAttributes());
+                tmpRemoteDataBlock.xmlDataBlock.setAttributes(delta.attributes);
+                resultRemoteDataBlock.push(tmpRemoteDataBlock);
+                countBlocks++;
                 cursorPos = 0;
-            }else{
-                text += xmlDataBlockList[index].text.substr(cursorPos, count);
+            } else {
+                text = currentBlock.text.substr(cursorPos, count);
+                tmpRemoteDataBlock = this._createRemoteDataBlock(text, countBlocks, currentBlock.getAttributes());
+                tmpRemoteDataBlock.xmlDataBlock.setAttributes(delta.attributes);
+                resultRemoteDataBlock.push(tmpRemoteDataBlock);
+                countBlocks++;
                 cursorPos += count;
                 count = 0;
             }
-        }
-
-        //split the text if it's bigger than one block
-        let tmp = this._splitBlock(text, countBlocks);
-        for(let j = 0; j < tmp.length; j++){
-            //set all the old attributes
-            tmp[j].xmlDataBlock.setAttributes(xmlDataBlockList[j].getAttributes());
-            //set the new attributes
-            tmp[j].xmlDataBlock.setAttributes(delta.attributes);
-            resultRemoteDataBlock.push(tmp[j]);
-            countBlocks++;
         }
 
         //if there is unchanged data within the last block (offset to block end)
