@@ -5,12 +5,16 @@ export default class RemoteDataBlock{
         if(!isNaN(pos)){
             this._pos = pos;
             this._op = op;
-            this.xmlBlock = xmlDataBlock;
+            this._xmlBlock = xmlDataBlock;
         }else{
             this.pos = pos.p;
             this.op = pos.op;
-            this.xmlBlock = new XmlDataBlock(pos.data);
+            this._xmlBlock = new XmlDataBlock(pos.data);
         }
+    }
+
+    get xmlDataBlock(){
+        return this._xmlBlock;
     }
 
     get pos(){
@@ -30,21 +34,22 @@ export default class RemoteDataBlock{
     }
 
     get length (){
-        return this.xmlBlock.length;
+        return this._xmlBlock.length;
     }
 
     set text(value){
-        this.xmlBlock.text = value;
+        this._xmlBlock.text = value;
     }
 
     get text(){
-        return this.xmlBlock.text;
+        return this._xmlBlock.text;
     }
 
     toString(){
         if(this.op === 'd'){
             return {p: this.pos, op: this.op};
         }
-        return {p: this.pos, op: this.op, data: this.xmlBlock.toString()};
+        let tmp = this._xmlBlock.toString();
+        return {p: this.pos, op: this.op, data: tmp};
     }
 }

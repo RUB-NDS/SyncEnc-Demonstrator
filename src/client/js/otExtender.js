@@ -54,6 +54,7 @@ export class OtExtender extends Module{
     update(delta, oldDelta, source){
         if(source !== 'user') return;
         console.log(delta);
+        console.log(oldDelta);
         xmlWrapper.quillTextChanged(delta, doc);
         console.log(doc.data);
     }

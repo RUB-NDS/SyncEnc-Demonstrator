@@ -1,4 +1,5 @@
 import XmlDataBlock from './xmlDataBlock';
+import Delta from 'quill-delta';
 
 export default class xmlDataCollection{
     constructor(documentElement){
@@ -60,6 +61,52 @@ export default class xmlDataCollection{
             offset += this.dataBlockList[i].length;
         }
         return offset;
+    }
+
+    getXmlDataBlockListByOffsetAndLength(offset, length){
+        let blockPos = this.getXmlDataBlockPositionByTextOffset(offset);
+        let resultBlockLen = this.getXmlDataBlockOffsetByPos(blockPos);
+        let blockOffsetEnd = offset + length;
+        let result = [];
+        let i = 1;
+        let currentBlock = this.getXmlDataBlockByBlockPosition(blockPos);
+        while (resultBlockLen < blockOffsetEnd && currentBlock != null){
+            result.push(currentBlock);
+            resultBlockLen += currentBlock.length;
+            currentBlock = this.getXmlDataBlockByBlockPosition(blockPos + i);
+            i++;
+        }
+        return result;
+    }
+
+    submitOp(op){
+        for(let i = 0; i < op.length; i++){
+            switch(op[i].op){
+                case 'a':
+                    this.insertAtIndex(op[i].xmlDataBlock, op[i].pos);
+                    break;
+                case 'r':
+                    this.replaceAtIndex(op[i].xmlDataBlock, op[i].pos);
+                    break;
+                case 'd':
+                    this.deleteAtIndex(op[i].pos);
+                    break;
+            }
+        }
+    }
+
+    get textContentWithFormattingDelta(){
+        let result = new Delta();
+        let attributes = null;
+        for(let i = 0; i < this.dataBlockList.length; i++){
+            attributes = this.dataBlockList[i].getAttributes();
+            if(attributes){
+                result.insert(this.dataBlockList[i].text, attributes);
+            }else{
+                result.insert(this.dataBlockList[i].text);
+            }
+        }
+        return result;
     }
 
     get textContent(){

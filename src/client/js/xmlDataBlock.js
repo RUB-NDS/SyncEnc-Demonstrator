@@ -31,6 +31,56 @@ export default class XmlBlock{
         return this.xmlElement;
     }
 
+    setAttributes(input){
+        if (input === null || Object.keys(input).length == 0) return;
+        let attributeElement = this.xmlElement.getElementsByTagName('attributes').item(0);
+        if(!attributeElement){
+            attributeElement =  xmlDoc.createElement('attributes');
+            this.xmlElement.appendChild(attributeElement);
+        }
+        let attributesValue = this.xmlElement.getElementsByTagName('attributes').item(0).textContent;
+        let attributes = null;
+        if(attributesValue != "")
+            attributes = JSON.parse(attributesValue);
+        else
+            attributes = {};
+
+        for(let key in input){
+            if(attributes[key]){
+                if(input[key] == null) {
+                    delete attributes[key]
+                }else{
+                    attributes[key] = input[key];
+                }
+            }else{
+                if(input[key] != null){
+                    attributes[key] = input[key];
+                }
+            }
+        }
+
+        if(Object.keys(attributes).length != 0){
+            attributeElement.textContent = JSON.stringify(attributes);
+        }else{
+            attributeElement.parentNode.removeChild(attributeElement);
+        }
+    }
+
+    getAttributes(){
+        let attributesElement = this.xmlElement.getElementsByTagName('attributes').item(0);
+        if(attributesElement)
+            return JSON.parse(attributesElement.textContent);
+        else
+            return null;
+    }
+
+    clone(){
+        let resultDataBlock = new XmlBlock();
+        resultDataBlock.text = this.text;
+        resultDataBlock.setAttributes(this.getAttributes());
+        return resultDataBlock;
+    }
+
     toString(){
         return xmlSerializer.serializeToString(this.xmlElement);
     }
@@ -39,7 +89,9 @@ export default class XmlBlock{
         var blockElement = xmlDoc.createElement('block');
         var dataElement = xmlDoc.createElement('data');
         //var opElement = xmlDoc.createElement('op');
+        //var attributeElement =  xmlDoc.createElement('attributes');
         blockElement.appendChild(dataElement);
+        //blockElement.appendChild(attributeElement);
         return blockElement;
     }
 

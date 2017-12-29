@@ -21,15 +21,24 @@ export default class XmlWrapper{
         let myDelta = new Delta(delta);
         let offset = 0;
         let ops = [];
+        let tmpOp = null;
         myDelta.forEach(function (op) {
             if(typeof op['delete'] === 'number'){
-                Array.prototype.push.apply(ops, this._deleteText(op.delete, offset));
+                tmpOp = this._deleteText(op.delete, offset);
+                this.xmlDataCollection.submitOp(tmpOp);
+                Array.prototype.push.apply(ops, this._convertToShareDbOperation(tmpOp));
                 offset -= op.delete;
             }else if(typeof op.retain === 'number'){
+                if(op.attributes){
+                    tmpOp = this._attributeChange(op, offset);
+                    this.xmlDataCollection.submitOp(tmpOp);
+                    Array.prototype.push.apply(ops, this._convertToShareDbOperation(tmpOp));
+                }
                 offset += op.retain;
             }else {
-                let opsResult = this._insertText(op.insert, offset);
-                Array.prototype.push.apply(ops, opsResult);
+                tmpOp = this._insertText(op, offset);
+                this.xmlDataCollection.submitOp(tmpOp);
+                Array.prototype.push.apply(ops, this._convertToShareDbOperation(tmpOp));
                 offset += op.insert.length;
             }
         }.bind(this));
@@ -51,7 +60,6 @@ export default class XmlWrapper{
                     resultDelta = resultDelta.compose(this._deleteTextInQuill(remoteDataBlock));
                     break;
             }
-
             console.log("pos: " + remoteDataBlock.pos + "offset :" + this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos));
         }.bind(this));
         console.log("DATA:" + this.doc.data);
@@ -69,12 +77,16 @@ export default class XmlWrapper{
     }
 
     reloadText(){
-        let delta = new Delta().insert(this.documentText);
-        this.emitter.emit('reload-text', delta);
+        //let delta = new Delta().insert(this.documentText);
+        this.emitter.emit('reload-text', this.xmlDataCollection.textContentWithFormattingDelta);
     }
 
     get documentText(){
         return this.xmlDataCollection.textContent;
+    }
+
+    get documentTextWithFormatting(){
+        return this.xmlDataCollection.textContentWithFormattingDelta;
     }
 
     /**
@@ -97,25 +109,26 @@ export default class XmlWrapper{
         let cursorPos = offset - xmlBlockOffset;
         let tmpCount = count;
         let result = [];
+        let deletedBlocks = 0;
         while(tmpCount > 0){
             xmlDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(xmlDataBlockPos);
             if(xmlDataBlock == null)
                 break;
             if(cursorPos == 0 && tmpCount >= xmlDataBlock.length){ // in this case we can delete the entire block
                 tmpCount -= xmlDataBlock.length;
-                result.push(new RemoteDataBlock(xmlDataBlockPos, 'd', xmlDataBlock).toString());
-                this.xmlDataCollection.deleteAtIndex(xmlDataBlockPos);
+                result.push(new RemoteDataBlock(xmlDataBlockPos - deletedBlocks, 'd', xmlDataBlock));
+                deletedBlocks++;
             }else if(cursorPos + tmpCount <= xmlDataBlock.length){
                 xmlDataBlock.text =  xmlDataBlock.text.substr(0, cursorPos) + xmlDataBlock.text.substr(cursorPos + tmpCount);
-                result.push(new RemoteDataBlock(xmlDataBlockPos, 'r', xmlDataBlock).toString());
+                result.push(new RemoteDataBlock(xmlDataBlockPos - deletedBlocks, 'r', xmlDataBlock));
                 tmpCount = 0;
             }else{ // delete part of the current block and then continue with the next one
                 tmpCount -= (xmlDataBlock.length - cursorPos);
                 xmlDataBlock.text = xmlDataBlock.text.substr(0, cursorPos) + xmlDataBlock.text.substr(xmlDataBlock.length);
-                result.push(new RemoteDataBlock(xmlDataBlockPos, 'r', xmlDataBlock).toString());
-                xmlDataBlockPos++;
+                result.push(new RemoteDataBlock(xmlDataBlockPos - deletedBlocks, 'r', xmlDataBlock));
                 cursorPos = 0;
             }
+            xmlDataBlockPos++;
         }
         return result;
     }
@@ -130,32 +143,105 @@ export default class XmlWrapper{
     _insertText(input, offset){
         let xmlDataBlockPos = this.xmlDataCollection.getXmlDataBlockPositionByTextOffset(offset);
         let xmlDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(xmlDataBlockPos);
+        let firstBlock = false;
         if(xmlDataBlock == null){
-            this.xmlDataCollection.insertAtIndex(new XmlDataBlock(), xmlDataBlockPos);
-            xmlDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(xmlDataBlockPos);
+            firstBlock = true;
+            xmlDataBlock = new XmlDataBlock();
         }
         let xmlDataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(xmlDataBlockPos);
 
         if(xmlDataBlockOffset + xmlDataBlock.length < offset){
             throw new Error('Insert is out of bounds!');
         }
-        let result = [];
+
         let textPos = offset - xmlDataBlockOffset; //position within the block
         let newText = xmlDataBlock.text.slice(0, textPos); //keep the first characters
-        newText += input; //add new text
+        newText += input.insert; //add new text
         newText += xmlDataBlock.text.slice(textPos); //add the remaining characters
-        if(newText.length > this._MAX_BLOCK_SIZE){
-            //TODO check for block merge as well (at least for the last block)
-            result = this._spitBlock(newText, xmlDataBlockPos);
-        }else{
-            xmlDataBlock.text = newText;
-            if(offset == 0){
-                result.push(new RemoteDataBlock(0, 'a', xmlDataBlock).toString());
-            }else{
-                result.push(new RemoteDataBlock(xmlDataBlockPos, 'r', xmlDataBlock).toString());
+        let result = this._splitBlock(newText, xmlDataBlockPos);
+        let attributes = xmlDataBlock.getAttributes();
+        if(attributes) {
+            for (let i = 0; i < result.length; i++){
+                result[i].xmlDataBlock.setAttributes(attributes);
             }
         }
+        if(!firstBlock){
+            result[0].op = 'r';
+        }
         return result;
+    }
+
+    _attributeChange(delta, offset){
+        let xmlDataBlockPos = this.xmlDataCollection.getXmlDataBlockPositionByTextOffset(offset);
+        let xmlDataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(xmlDataBlockPos);
+        let count = delta.retain;
+        let xmlDataBlockList = this.xmlDataCollection.getXmlDataBlockListByOffsetAndLength(offset, count);
+        let cursorPos = offset - xmlDataBlockOffset;
+        let resultRemoteDataBlock = [];
+        let text = xmlDataBlockList[0].text.substr(0, cursorPos);
+        let tmpRemoteDataBlock = null;
+        let countBlocks = xmlDataBlockPos;
+        //if there is unchanged data within the first block (0 to cursorPos).
+        if(text.length != 0){
+            //clone the block and put it in a new Block, change the text
+            tmpRemoteDataBlock = new RemoteDataBlock(xmlDataBlockPos, 'r', xmlDataBlockList[0].clone());
+            tmpRemoteDataBlock.text = text;
+            resultRemoteDataBlock.push(tmpRemoteDataBlock);
+            countBlocks++;
+        }
+
+        //go through the changes cursorPos to offset and save the text
+        text = "";
+        for(let index in xmlDataBlockList){
+            if(cursorPos + count > xmlDataBlockList[index].length){
+                text += xmlDataBlockList[index].text.substr(cursorPos, xmlDataBlockList[index].length);
+                count -= (xmlDataBlockList[index].length - cursorPos);
+                cursorPos = 0;
+            }else{
+                text += xmlDataBlockList[index].text.substr(cursorPos, count);
+                cursorPos += count;
+                count = 0;
+            }
+        }
+
+        //split the text if it's bigger than one block
+        let tmp = this._splitBlock(text, countBlocks);
+        for(let j = 0; j < tmp.length; j++){
+            //set all the old attributes
+            tmp[j].xmlDataBlock.setAttributes(xmlDataBlockList[j].getAttributes());
+            //set the new attributes
+            tmp[j].xmlDataBlock.setAttributes(delta.attributes);
+            resultRemoteDataBlock.push(tmp[j]);
+            countBlocks++;
+        }
+
+        //if there is unchanged data within the last block (offset to block end)
+        let lastDataBlock = xmlDataBlockList[xmlDataBlockList.length - 1];
+        if(lastDataBlock.length - cursorPos > 0){
+            text = lastDataBlock.text.substr(cursorPos, lastDataBlock.length);
+            tmpRemoteDataBlock = new RemoteDataBlock(countBlocks, 'a', lastDataBlock.clone());
+            tmpRemoteDataBlock.text = text;
+            resultRemoteDataBlock.push(tmpRemoteDataBlock);
+        }
+
+        //set remote operations, first replacements
+        let countReplacements =  (resultRemoteDataBlock.length < xmlDataBlockList.length ?
+            resultRemoteDataBlock.length : xmlDataBlockList.length)
+        for(let j = 0; j < countReplacements; j++)
+            resultRemoteDataBlock[j].op = 'r';
+
+        //if there are more blocks than before, we have to add new blocks to the xml
+        if(resultRemoteDataBlock.length > xmlDataBlockList.length)
+            for(let j = xmlDataBlockList.length; j < resultRemoteDataBlock.length; j++)
+                resultRemoteDataBlock[j].op = 'a';
+
+        //if there less blocks than before, we have to delete the other blocks
+        else if (resultRemoteDataBlock.length < xmlDataBlockList.length)
+            for(let j = resultRemoteDataBlock.length; j < xmlDataBlockList.length; j++){
+                resultRemoteDataBlock.push(new RemoteDataBlock(countBlocks, 'd'));
+            }
+
+        return resultRemoteDataBlock;
     }
 
     /**
@@ -165,12 +251,7 @@ export default class XmlWrapper{
      * @returns {Array} returns an array of split blocks
      * @private
      */
-    _spitBlock(text, firstBlockPos){
-        let firstBlock = false;
-        if(firstBlockPos == 0)
-            if(this.xmlDataCollection.getXmlDataBlockByBlockPosition(firstBlockPos).length == 0)
-                firstBlock = true;
-
+    _splitBlock(text, firstBlockPos){
         let count = Math.floor(text.length / this._MAX_BLOCK_SIZE);
         let result = [];
         if(text.length % this._MAX_BLOCK_SIZE)
@@ -178,28 +259,30 @@ export default class XmlWrapper{
         for(let i = 0; i < count; i++){
             let xmlDataBlock =  new XmlDataBlock();
             let remoteDataBlock = new RemoteDataBlock(firstBlockPos + i, 'a', xmlDataBlock);
-            if(i != 0){
-                this.xmlDataCollection.insertAtIndex(xmlDataBlock, firstBlockPos + i);
-            }else{
-                if(firstBlock){
-                    this.xmlDataCollection.insertAtIndex(xmlDataBlock, firstBlockPos + i);
-                }else{
-                    remoteDataBlock.op = 'r';
-                    this.xmlDataCollection.replaceAtIndex(xmlDataBlock, firstBlockPos + i);
-                }
-            }
             remoteDataBlock.text = text.slice(i * this._MAX_BLOCK_SIZE, i * this._MAX_BLOCK_SIZE + this._MAX_BLOCK_SIZE);
-            result.push(remoteDataBlock.toString());
+
+            result.push(remoteDataBlock);
         }
-        if(!firstBlock)
-            result[0].op = 'r';
+        return result;
+    }
+
+    _convertToShareDbOperation(ops){
+        let result = [];
+        for(let i = 0; i < ops.length; i++){
+            result.push(ops[i].toString());
+        }
         return result;
     }
 
     _insertTextInQuill(remoteDataBlock){
         let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
-        let delta = new Delta().retain(dataBlockOffset).insert(remoteDataBlock.text);
-        this.xmlDataCollection.insertAtIndex(remoteDataBlock.xmlBlock, remoteDataBlock.pos);
+        let attributes = remoteDataBlock.xmlDataBlock.getAttributes();
+        let delta = null;
+        if(attributes)
+            delta = new Delta().retain(dataBlockOffset).insert(remoteDataBlock.text, attributes);
+        else
+            delta = new Delta().retain(dataBlockOffset).insert(remoteDataBlock.text);
+        this.xmlDataCollection.insertAtIndex(remoteDataBlock._xmlBlock, remoteDataBlock.pos);
         return delta;
     }
 
@@ -214,10 +297,17 @@ export default class XmlWrapper{
     _replaceTextInQuill(remoteDataBlock){
         let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
         let localDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(remoteDataBlock.pos);
-        let delta = new Delta() .retain(dataBlockOffset)
+        let attributes = remoteDataBlock.xmlDataBlock.getAttributes();
+        let delta = null;
+        if(attributes)
+            delta = new Delta() .retain(dataBlockOffset)
+                                .insert(remoteDataBlock.text, attributes)
+                                .delete(localDataBlock.length);
+        else
+            delta = new Delta() .retain(dataBlockOffset)
                                 .insert(remoteDataBlock.text)
                                 .delete(localDataBlock.length);
-        this.xmlDataCollection.replaceAtIndex(remoteDataBlock.xmlBlock, remoteDataBlock.pos);
+        this.xmlDataCollection.replaceAtIndex(remoteDataBlock._xmlBlock, remoteDataBlock.pos);
         return delta;
     }
 
