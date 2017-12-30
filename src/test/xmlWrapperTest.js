@@ -141,6 +141,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
     });
 
     describe('formatting changed' ,function () {
+
         it('list formatting',function () {
             let deltaResult = new Delta();
             let doc = new Doc(initialDoc);
@@ -167,7 +168,181 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             assert.deepEqual(xmlWrapper.documentTextWithFormatting, deltaResult);
         });
 
+        it('formatting: [ffpp][pppp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
 
+            let formatting = new Delta().retain(xmlWrapper.MAX_BLOCK_SIZE/2, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta).compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [pffp][pppp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE / 4)).retain(xmlWrapper.MAX_BLOCK_SIZE/2, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ppff][pppp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(xmlWrapper.MAX_BLOCK_SIZE / 2)
+                .retain(xmlWrapper.MAX_BLOCK_SIZE / 2, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ffff][pppp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(xmlWrapper.MAX_BLOCK_SIZE, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ppff][ffpp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE / 2))
+                .retain(xmlWrapper.MAX_BLOCK_SIZE, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ppff][ffff][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE / 2))
+                .retain(xmlWrapper.MAX_BLOCK_SIZE + xmlWrapper.MAX_BLOCK_SIZE / 2, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ppff][ffff][ffpp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE / 2))
+                .retain(xmlWrapper.MAX_BLOCK_SIZE + xmlWrapper.MAX_BLOCK_SIZE, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ffff][ffff][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(xmlWrapper.MAX_BLOCK_SIZE * 2, {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [ffff][ffpp][pppp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE * 1.5), {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('formatting: [pppp][ppff][ffpp]', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE * 1.5))
+                .retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE), {bold: true});
+            xmlWrapper.quillTextChanged(formatting);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
+
+        it('multiple formatting', function () {
+            let doc = new Doc(initialDoc);
+            let xmlWrapper = new XmlWrapper(doc);
+            xmlWrapper.reloadXml();
+            let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
+            xmlWrapper.quillTextChanged(delta);
+
+            let formatting1 = new Delta().retain(xmlWrapper.MAX_BLOCK_SIZE * 3, {bold: true});
+            xmlWrapper.quillTextChanged(formatting1);
+            let formatting2 = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE * 0.5))
+                .retain(xmlWrapper.MAX_BLOCK_SIZE * 2, {italic: true});
+            xmlWrapper.quillTextChanged(formatting2);
+            let formatting3 = new Delta().retain(Math.floor(xmlWrapper.MAX_BLOCK_SIZE * 0.75))
+                .retain(xmlWrapper.MAX_BLOCK_SIZE, {underline: true});
+            xmlWrapper.quillTextChanged(formatting3);
+
+            let resultDelta = new Delta(delta);
+            resultDelta = resultDelta.compose(formatting1);
+            resultDelta = resultDelta.compose(formatting2);
+            resultDelta = resultDelta.compose(formatting3);
+            assert.deepEqual(xmlWrapper.documentTextWithFormatting, resultDelta);
+        });
     });
 });
 
