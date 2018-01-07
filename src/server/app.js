@@ -31,14 +31,13 @@ app.use(webpackDevMiddleware(compiler, {
   publicPath: config.output.publicPath
 }));
 
-
 app.use(express.static('static'));
 app.use(express.static('src/client/views'));
 
 var server = http.createServer(app);
 var wss = new WebSocket.Server({server: server});
-wss.on('error', console.error);
 wss.on('connection', function (ws, req) {
+    ws.on('error', console.error);
    var stream = new WebSocketJSONStream(ws);
    backend.listen(stream);
 });
