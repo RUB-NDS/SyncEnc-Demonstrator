@@ -1,12 +1,11 @@
 import Delta from 'quill-delta';
-import XmlDom from 'xmldom';
 import XmlDataCollection from './xmlDataCollection';
 import RemoteDataBlock from './remoteDataBlock';
 import XmlDataBlock from './xmlDataBlock';
 import { EventEmitter } from 'eventemitter3';
 
-var xmlParser = new XmlDom.DOMParser();
-var xmlSerializer = new XmlDom.XMLSerializer();
+var xmlParser = new window.DOMParser();
+var xmlSerializer = new XMLSerializer();
 
 export default class XmlWrapper{
     constructor(doc){

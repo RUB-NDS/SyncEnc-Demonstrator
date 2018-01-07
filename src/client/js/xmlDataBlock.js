@@ -1,8 +1,6 @@
-import XmlDom from 'xmldom';
-
-var xmlParser = new XmlDom.DOMParser();
-var xmlSerializer = new XmlDom.XMLSerializer();
-var xmlDoc = new XmlDom.DOMImplementation().createDocument("","",null);
+var xmlParser = new window.DOMParser();
+var xmlSerializer = new XMLSerializer();
+var xmlDoc = document.implementation.createDocument("","",null);
 
 export default class XmlBlock{
     constructor(xmlBlock){
