@@ -7,7 +7,6 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'OtExtender.bundle.js',
-        //publicPath: '/dist'
     },
     module: {
         rules: [
@@ -17,12 +16,12 @@ module.exports = {
                     {
                         loader: 'babel-loader',
                         options: {
-                            presets: [['es2015', {'modules' : false}]],
+                            presets: [['es2015', {'modules': false}]],
                             plugins: ['babel-plugin-transform-class-properties']
                         }
                     }
                 ]
-            },
+            }
         ]
     },
     plugins: [
