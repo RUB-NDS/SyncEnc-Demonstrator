@@ -100,17 +100,14 @@ class XmlWrapper {
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
         this.headerSection = new XmlHeaderSection(this.xmlDoc.documentElement.getElementsByTagName("header").item(0));
         if (this.headerSection.isEncrypted) {
-            this.headerSection.setDocumentKey().then(function (key) {
+            return this.headerSection.setDocumentKey().then(function (key) {
                 this.documentKey = key;
                 //this.encryptionTest();
                 //this.decryptionTest();
                 this.xmlDataCollection = new XmlDataCollection(
                     this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
-                Promise.all(this.xmlDataCollection.init()).catch(function (err) {
-                    console.log(err);
-                }).then(() => {
-                    this.emitter.emit(XmlWrapper.events.DOCUMENT_LOADED,
-                        this.xmlDataCollection.textContentWithFormattingDelta);
+                return Promise.all(this.xmlDataCollection.init()).then(() =>{
+                    return this.xmlDataCollection.textContentWithFormattingDelta;
                 });
             }.bind(this)).then(null, function (err) {
                 console.error(err);
@@ -119,13 +116,11 @@ class XmlWrapper {
         else {
             this.xmlDataCollection = new XmlDataCollection(
                 this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
-            Promise.all(this.xmlDataCollection.init()).then(() => {
-                this.emitter.emit(XmlWrapper.events.DOCUMENT_LOADED,
-                    this.xmlDataCollection.textContentWithFormattingDelta);
-            }, reason => {
-                console.error(reason);
+            return Promise.all(this.xmlDataCollection.init()).then(() =>{
+                return this.xmlDataCollection.textContentWithFormattingDelta;
             });
         }
+        console.error("Unreachable code !!");
     }
 
     documentKeyLoaded(key) {

@@ -30,7 +30,9 @@ new Promise((resolve, reject) => {
         }
     });
 }).then((doc) => {
-    xmlWrapper.shareDbDocumentLoaded();
+    xmlWrapper.shareDbDocumentLoaded().then((delta) => {
+        window.quill.setContents(delta, 'api');
+    });
 
     doc.on('op', function (op, source) {
         if (source === 'quill') return;
@@ -46,8 +48,6 @@ export class OtExtender extends Module {
         this.container = document.querySelector(options.container);
         quill.on('text-change', this.update.bind(this));
         xmlWrapper.on(XmlWrapper.events.REMOTE_UPDATE, this.remoteUpdate.bind(this));
-        //TODO add new method for doc laoded enable doc after laoding !
-        xmlWrapper.on(XmlWrapper.events.DOCUMENT_LOADED, this.reloadText.bind(this));
     }
 
     update(delta, oldDelta, source) {
@@ -62,10 +62,6 @@ export class OtExtender extends Module {
     remoteUpdate(op) {
         let delta = new Delta(op);
         this.quill.updateContents(delta);
-    }
-
-    reloadText(delta) {
-        this.quill.setContents(delta, 'api');
     }
 
 }
