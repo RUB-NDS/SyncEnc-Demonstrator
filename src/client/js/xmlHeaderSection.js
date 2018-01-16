@@ -4,7 +4,7 @@ class XmlHeaderSection {
     }
 
     get isEncrypted() {
-        return true;
+        return false;
     }
 
     setDocumentKey() {

@@ -32,6 +32,7 @@ new Promise((resolve, reject) => {
 }).then((doc) => {
     xmlWrapper.shareDbDocumentLoaded().then((delta) => {
         window.quill.setContents(delta, 'api');
+        window.quill.enable();
     });
 
     doc.on('op', function (op, source) {
@@ -48,6 +49,7 @@ export class OtExtender extends Module {
         this.container = document.querySelector(options.container);
         quill.on('text-change', this.update.bind(this));
         xmlWrapper.on(XmlWrapper.events.REMOTE_UPDATE, this.remoteUpdate.bind(this));
+        quill.enable(false);
     }
 
     update(delta, oldDelta, source) {

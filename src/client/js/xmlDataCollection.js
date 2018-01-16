@@ -5,7 +5,10 @@ export default class xmlDataCollection {
     constructor(documentElement, documentKey) {
         this.document = documentElement;
         this.dataBlockList = [];
-        this.documentKey = documentKey;
+        if (documentKey == undefined)
+            this.documentKey = null;
+        else
+            this.documentKey = documentKey;
     }
 
     init() {
@@ -14,7 +17,7 @@ export default class xmlDataCollection {
             if (this.documentKey !== null) {
                 this.dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), this.documentKey));
             } else {
-                this.dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i)));
+                this.dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), null));
             }
             result.push(this.dataBlockList[i].init());
         }

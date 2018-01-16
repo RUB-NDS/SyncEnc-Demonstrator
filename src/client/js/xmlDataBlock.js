@@ -25,7 +25,7 @@ export default class XmlBlock {
                                 reject(err);
                             });
                         } else {
-                            this.xmlElement = xmlParser.parseFromString(this.inputData, 'application/xml');
+                            this.xmlElement = xmlParser.parseFromString(this.inputData, 'application/xml').childNodes[0];
                         }
                     else {
                         if (this.isEncrypted) {
@@ -55,6 +55,7 @@ export default class XmlBlock {
         return encryptedXML.decrypt(blockElement, this.documentKey).then(function (decrypted) {
             //get the block element and replace it
             let newChild = decrypted.childNodes[0].childNodes[0].childNodes[0];
+            this._decodeAllElementsForDecryption(newChild);
             //on refresh we want to replace the encrypted blocks
             if (this.xmlElement.parentElement != null)
                 this.xmlElement.parentElement.replaceChild(newChild, this.xmlElement);
@@ -65,6 +66,7 @@ export default class XmlBlock {
 
     _encryptElement() {
         let blockElement = this._getElementForCipher();
+        this._encodeAllElementsForEncryption(blockElement.childNodes[0].childNodes[0]);
         let reference = new Reference("/block/block");
         let references = [];
         references.push(reference);
@@ -72,13 +74,24 @@ export default class XmlBlock {
         let encryptedXML = new EncryptedXML();
         let encParams = new EncryptionParams();
         encParams.setSymmetricKey(this.documentKey);
-        encParams.setStaticIV(true); //TODO set me to false
+        encParams.setStaticIV(false);
         encParams.setReferences(references);
         return encryptedXML.encrypt(blockElement, encParams.getEncryptionInfo()).then((encrypted) => {
             return encrypted.childNodes[0];
         });
     }
 
+    _encodeAllElementsForEncryption(block){
+        for(let i = 0; i < block.childNodes.length; i++){
+            block.childNodes[i].textContent = encodeURI(block.childNodes[i].textContent);
+        }
+    }
+
+    _decodeAllElementsForDecryption(block){
+        for(let i = 0; i < block.childNodes.length; i++){
+            block.childNodes[i].textContent = decodeURI(block.childNodes[i].textContent);
+        }
+    }
 
     _getElementForCipher() {
         let encryptedXmlElementCopy = this.xmlElement.cloneNode(true);
@@ -192,8 +205,6 @@ export default class XmlBlock {
             return new Promise((resolve) => {
                 resolve(xmlSerializer.serializeToString(this.xmlElement));
             });
-
-
     }
 
     _createEmptyBlockElement() {

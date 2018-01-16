@@ -13,9 +13,6 @@
     <script>mocha.setup('bdd')</script>
     <script type="module" src="xmlWrapperTest.js"></script>
     <script type="module">
-        if (typeof initMochaPhantomJS === 'function') {
-            initMochaPhantomJS();
-        }
         //mocha.checkLeaks();
         mocha.run();
     </script>
