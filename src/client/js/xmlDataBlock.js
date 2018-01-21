@@ -1,4 +1,5 @@
 import './externalLibs/xmlsec-webcrypto.uncompressed';
+import CryptoHelper from './cryptoHelper';
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -48,7 +49,7 @@ export default class XmlBlock {
     }
 
     _decryptElement() {
-        let blockElement = this._getElementForCipher();
+        let blockElement = CryptoHelper._getBlockForDecryption(this.xmlElement);
 
         //decrypt the element
         let encryptedXML = new EncryptedXML();
@@ -65,7 +66,7 @@ export default class XmlBlock {
     }
 
     _encryptElement() {
-        let blockElement = this._getElementForCipher();
+        let blockElement = CryptoHelper._getBlockForDecryption(this.xmlElement);
         this._encodeAllElementsForEncryption(blockElement.childNodes[0].childNodes[0]);
         let reference = new Reference("/block/block");
         let references = [];
@@ -91,17 +92,6 @@ export default class XmlBlock {
         for(let i = 0; i < block.childNodes.length; i++){
             block.childNodes[i].textContent = decodeURI(block.childNodes[i].textContent);
         }
-    }
-
-    _getElementForCipher() {
-        let encryptedXmlElementCopy = this.xmlElement.cloneNode(true);
-        let blockElement = xmlDoc.createElement("block");
-        blockElement.appendChild(encryptedXmlElementCopy);
-
-        // xpath cannot find anything in the generated xml document -> solution serialize -> parse back to xml
-        let tmp = xmlSerializer.serializeToString(blockElement);
-        blockElement = xmlParser.parseFromString(tmp, "application/xml");
-        return blockElement;
     }
 
     get isEncrypted() {
@@ -215,6 +205,14 @@ export default class XmlBlock {
         blockElement.appendChild(dataElement);
         //blockElement.appendChild(attributeElement);
         return blockElement;
+    }
+
+    setDocumentKey(value){
+        this.documentKey = value;
+    }
+
+    deleteDocumentKey(){
+        this.documentKey = null;
     }
 
 }

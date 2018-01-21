@@ -4,7 +4,7 @@ import Delta from 'quill-delta';
 export default class xmlDataCollection {
     constructor(documentElement, documentKey) {
         this.document = documentElement;
-        this.dataBlockList = [];
+        this._dataBlockList = [];
         if (documentKey == undefined)
             this.documentKey = null;
         else
@@ -15,17 +15,17 @@ export default class xmlDataCollection {
         var result = [];
         for (let i = 0; i < this.document.childNodes.length; i++) {
             if (this.documentKey !== null) {
-                this.dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), this.documentKey));
+                this._dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), this.documentKey));
             } else {
-                this.dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), null));
+                this._dataBlockList.push(new XmlDataBlock(this.document.childNodes.item(i), null));
             }
-            result.push(this.dataBlockList[i].init());
+            result.push(this._dataBlockList[i].init());
         }
         return result;
     }
 
     insertAtIndex(xmlDataBlock, pos) {
-        this.dataBlockList.splice(pos, 0, xmlDataBlock);
+        this._dataBlockList.splice(pos, 0, xmlDataBlock);
         if (pos == this.document.childNodes.length)
             this.document.appendChild(xmlDataBlock.element);
         else
@@ -34,7 +34,7 @@ export default class xmlDataCollection {
     }
 
     deleteAtIndex(pos) {
-        this.dataBlockList.splice(pos, 1);
+        this._dataBlockList.splice(pos, 1);
         var element = this.document.childNodes[pos];
         element.parentNode.removeChild(element);
     }
@@ -45,8 +45,8 @@ export default class xmlDataCollection {
     }
 
     getXmlDataBlockByBlockPosition(pos) {
-        if (this.dataBlockList.length > pos) {
-            return this.dataBlockList[pos];
+        if (this._dataBlockList.length > pos) {
+            return this._dataBlockList[pos];
         }
         return null;
     }
@@ -54,11 +54,11 @@ export default class xmlDataCollection {
     getXmlDataBlockPositionByTextOffset(offset) {
         let blockOffset = 0;
         let i = 0;
-        for (; i < this.dataBlockList.length; i++) {
-            if (blockOffset + this.dataBlockList[i].length >= offset) {
+        for (; i < this._dataBlockList.length; i++) {
+            if (blockOffset + this._dataBlockList[i].length >= offset) {
                 return i;
             }
-            blockOffset += this.dataBlockList[i].length;
+            blockOffset += this._dataBlockList[i].length;
         }
         if (blockOffset != offset)
             throw new Error('The offset: ' + offset + ' is greater than the text size ' + blockOffset + '!');
@@ -71,7 +71,7 @@ export default class xmlDataCollection {
             return 0;
         let offset = 0;
         for (let i = 0; i < pos; i++) {
-            offset += this.dataBlockList[i].length;
+            offset += this._dataBlockList[i].length;
         }
         return offset;
     }
@@ -111,22 +111,18 @@ export default class xmlDataCollection {
     get textContentWithFormattingDelta() {
         let result = new Delta();
         let attributes = null;
-        for (let i = 0; i < this.dataBlockList.length; i++) {
-            attributes = this.dataBlockList[i].getAttributes();
+        for (let i = 0; i < this._dataBlockList.length; i++) {
+            attributes = this._dataBlockList[i].getAttributes();
             if (attributes) {
-                result.insert(this.dataBlockList[i].text, attributes);
+                result.insert(this._dataBlockList[i].text, attributes);
             } else {
-                result.insert(this.dataBlockList[i].text);
+                result.insert(this._dataBlockList[i].text);
             }
         }
         return result;
     }
 
-    get textContent() {
-        let result = "";
-        for (let i = 0; i < this.document.childNodes.length; i++) {
-            result += this.document.childNodes[i].getElementsByTagName('data').item(0).textContent;
-        }
-        return result;
+    get dataBlockList() {
+        return this._dataBlockList;
     }
 }

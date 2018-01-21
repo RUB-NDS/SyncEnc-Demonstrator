@@ -4,6 +4,7 @@ import RemoteDataBlock from './remoteDataBlock';
 import XmlDataBlock from './xmlDataBlock';
 import {EventEmitter} from 'eventemitter3';
 import XmlHeaderSection from "./xmlHeaderSection";
+import xmlEnc from "xml-enc/lib/type";
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -17,6 +18,8 @@ class XmlWrapper {
         this._MAX_BLOCK_SIZE = 10;
         this.emitter = new EventEmitter();
         this.documentKey = null;
+        this.publicKey = null;
+        this.privateKey = null;
     }
 
     quillTextChanged(delta) {
@@ -49,25 +52,128 @@ class XmlWrapper {
             for (let i = 0; i < opsPromises.length; i++) {
                 Array.prototype.push.apply(ops, opsPromises[i]);
             }
-            console.log(ops);
             this.doc.submitOp(ops, {source: "quill"});
         });
 
     }
 
     remoteUpdate(op) {
+        if (op[0].op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
+            let headerChanges = [];
+            let documentChanges = [];
+            op.forEach(function (op) {
+                if (op.op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
+                    headerChanges.push(op);
+                } else {
+                    documentChanges.push(op);
+                }
+            });
+            this.headerSection.setHeaderElement(headerChanges);
+            this.headerSection.loadDocumentKey(this.privateKey).then((key) => {
+                this.documentKey = key;
+                this._executeDocumentOperations(documentChanges);
+            });
+        } else {
+            this._executeDocumentOperations(op);
+        }
+    }
+
+    on() {
+        return this.emitter.on.apply(this.emitter, arguments);
+    }
+
+    /**
+     * Must be executed after shareDb has transferred the entire document to the client.
+     * The client must now convert the xml document to delta-quill.
+     */
+    shareDbDocumentLoaded() {
+        this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
+        this.headerSection = new XmlHeaderSection(this.xmlDoc.documentElement.getElementsByTagName("header").item(0));
+        if (this.headerSection.isEncrypted) {
+            return this.headerSection.loadDocumentKey(this.privateKey).then(function (key) {
+                this.documentKey = key;
+                this.xmlDataCollection = new XmlDataCollection(
+                    this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
+                return Promise.all(this.xmlDataCollection.init()).then(() => {
+                    return this.xmlDataCollection.textContentWithFormattingDelta;
+                });
+            }.bind(this)).then(null, function (err) {
+                console.error(err);
+            });
+        }
+        else {
+            this.xmlDataCollection = new XmlDataCollection(
+                this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
+            return Promise.all(this.xmlDataCollection.init()).then(() => {
+                return this.xmlDataCollection.textContentWithFormattingDelta;
+            });
+        }
+        console.error("Unreachable code !!");
+    }
+
+    encryptDocument() {
+        // if (this.headerSection.isEncrypted)
+        //     return;
+        return this.headerSection.createDocumentKey().then((docKey) => {
+            this.documentKey = docKey;
+            return this.headerSection.encryptDocumentKey(this.publicKey).then((encryptedDocumentKeyElement) => {
+                //Add the user to the header
+                let ops = [];
+                let remoteChanges = this.headerSection.addUser("admin", encryptedDocumentKeyElement);
+                Array.prototype.push.apply(ops, remoteChanges);//add the changes to the server op array
+                //all block must be replaced for encryption
+                let remoteDataBlocks = this._replaceAllBlocks();
+                let opPromises = [];
+                opPromises.push(this._convertToShareDbOperation(remoteDataBlocks));
+                return Promise.all(opPromises).then((opArray) => {
+                    for (let i = 0; i < opArray.length; i++) {
+                        Array.prototype.push.apply(ops, opArray[i]);
+                    }
+                    this.doc.submitOp(ops, {source: "quill"});
+                    console.log(this.doc.data);
+                });
+            });
+        });
+    }
+
+    loadPublicKey(publicKey) {
+        publicKey = window.Helper.base64ToArrayBuffer(publicKey);
+        return window.crypto.subtle.importKey("spki", publicKey, {
+            name: "RSA-OAEP",
+            hash: {
+                name: "SHA-256"
+            }
+        }, true, ["encrypt", "wrapKey"])
+            .then((pubKey) => {
+                this.publicKey = pubKey;
+            });
+    }
+
+    loadPrivateKey(privateKey) {
+        privateKey = window.Helper.base64ToArrayBuffer(privateKey);
+        return window.crypto.subtle.importKey("pkcs8", privateKey, {
+            name: "RSA-OAEP",
+            hash: {
+                name: "SHA-256"
+            }
+        }, true, ["decrypt", "unwrapKey"]).then((priKey) => {
+            this.privateKey = priKey;
+        });
+    }
+
+    _executeDocumentOperations(op) {
         let resultDeltaPromises = [];
         op.forEach(function (op) {
             let remoteDataBlock = new RemoteDataBlock(op, this.documentKey);
             resultDeltaPromises.push(remoteDataBlock.initRemoteData().then((remoteDataBlock) => {
                 switch (remoteDataBlock.op) {
-                    case 'a':
+                    case xmlEnc.operations.ADD_DOCUMENT_BLOCK:
                         return this._insertTextInQuill(remoteDataBlock);
                         break;
-                    case 'r':
+                    case xmlEnc.operations.REPLACE_DOCUMENT_BLOCK:
                         return this._replaceTextInQuill(remoteDataBlock);
                         break;
-                    case 'd':
+                    case xmlEnc.operations.REMOVE_DOCUMENT_BLOCK:
                         return this._deleteTextInQuill(remoteDataBlock);
                         break;
                 }
@@ -88,54 +194,13 @@ class XmlWrapper {
         });
     }
 
-    on() {
-        return this.emitter.on.apply(this.emitter, arguments);
-    }
-
-    /**
-     * Must be executed after shareDb has transferred the entire document to the client.
-     * The client must now convert the xml document to delta-quill.
-     */
-    shareDbDocumentLoaded() {
-        this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
-        this.headerSection = new XmlHeaderSection(this.xmlDoc.documentElement.getElementsByTagName("header").item(0));
-        if (this.headerSection.isEncrypted) {
-            return this.headerSection.setDocumentKey().then(function (key) {
-                this.documentKey = key;
-                //this.encryptionTest();
-                //this.decryptionTest();
-                this.xmlDataCollection = new XmlDataCollection(
-                    this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
-                return Promise.all(this.xmlDataCollection.init()).then(() =>{
-                    return this.xmlDataCollection.textContentWithFormattingDelta;
-                });
-            }.bind(this)).then(null, function (err) {
-                console.error(err);
-            });
+    _replaceAllBlocks() {
+        let xmlRemoteDataBlocks = [];
+        for (let i = 0; i < this.xmlDataCollection.dataBlockList.length; i++) {
+            this.xmlDataCollection.dataBlockList[i].setDocumentKey(this.documentKey);
+            xmlRemoteDataBlocks.push(new RemoteDataBlock(i, 'r', this.xmlDataCollection.dataBlockList[i]));
         }
-        else {
-            this.xmlDataCollection = new XmlDataCollection(
-                this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
-            return Promise.all(this.xmlDataCollection.init()).then(() =>{
-                return this.xmlDataCollection.textContentWithFormattingDelta;
-            });
-        }
-        console.error("Unreachable code !!");
-    }
-
-    documentKeyLoaded(key) {
-        this.xmlDataCollection = new XmlDataCollection(
-            this.xmlDoc.documentElement.getElementsByTagName("document").item(0), key);
-        this.xmlDataCollection.init();
-        this.emitter.emit(XmlWrapper.events.DOCUMENT_LOADED, this.xmlDataCollection.textContentWithFormattingDelta);
-    }
-
-    get documentText() {
-        return this.xmlDataCollection.textContent;
-    }
-
-    get documentTextWithFormatting() {
-        return this.xmlDataCollection.textContentWithFormattingDelta;
+        return xmlRemoteDataBlocks;
     }
 
     /**
@@ -428,6 +493,11 @@ class XmlWrapper {
     get MAX_BLOCK_SIZE() {
         return this._MAX_BLOCK_SIZE;
     }
+
+    get documentTextWithFormatting() {
+        return this.xmlDataCollection.textContentWithFormattingDelta;
+    }
+
 }
 
 XmlWrapper.events = {

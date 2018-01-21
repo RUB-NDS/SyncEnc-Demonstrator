@@ -50,7 +50,4 @@ var doc = connection.get('test', 'xml-enc');
 
 doc.fetch(function (err) {
     if (err) throw err;
-    if (doc.type === null) {
-        doc.create('<root><header/><document></document></root>', 'xml-enc');
-    }
 });
