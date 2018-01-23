@@ -1,7 +1,8 @@
 import xpath from 'xpath';
 import './externalLibs/xmlsec-webcrypto.uncompressed';
 import xmlEnc from 'xml-enc/lib/type';
-import CryptoHelper from './cryptoHelper';
+import HelperClass from './HelperClass';
+import {EventEmitter} from 'eventemitter3';
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -14,6 +15,7 @@ class XmlHeaderSection {
         this.header = header;
         this.documentKey = null;
         this.user = 'admin';
+        this.emitter = new EventEmitter();
     }
 
     get isEncrypted() {
@@ -24,12 +26,28 @@ class XmlHeaderSection {
         }
     }
 
+    _setIsEncrypted(value) {
+        if (this.isEncrypted === HelperClass.convertStringToBoolean(value))
+            return;
+        if (this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED).length === 0) {
+            let isEncryptedElement = xmlDoc.createElement(this.elementNames.IS_ENCRYPTED);
+            this.header.appendChild(isEncryptedElement);
+        }
+        this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED)[0].textContent = value;
+        //encryption was enabled / disabled
+        this.emitter.emit(XmlHeaderSection.events.ENCRYPTION_CHANGED, this.isEncrypted);
+    }
+
+    on() {
+        return this.emitter.on.apply(this.emitter, arguments);
+    }
+
     loadDocumentKey(privateKey) {
         let user = this._getUserByName(this.user);
         if (user === null) {
             throw new Error("User error");
         }
-        let block = CryptoHelper._getBlockForDecryption(user.getElementsByTagName('key')[0]);
+        let block = HelperClass.getBlockForDecryption(user.getElementsByTagName('key')[0]);
         let encryptedXML = new EncryptedXML();
         return encryptedXML.decrypt(block, privateKey).then((decryptedKeyElement) => {
             console.log(decryptedKeyElement.childNodes[0].textContent);
@@ -77,16 +95,13 @@ class XmlHeaderSection {
                 user.replaceChild(keyElement.childNodes[0], user.getElementsByTagName("key")[0]);
             }
         }
-        if (this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED).length === 0) {
-            let isEncryptedElement = xmlDoc.createElement(this.elementNames.IS_ENCRYPTED);
-            this.header.appendChild(isEncryptedElement);
-        }
-        this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED)[0].textContent = "true";
+        this._setIsEncrypted('true');
         let remoteChanges = [];
         remoteChanges.push({
             op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
             data: xmlSerializer.serializeToString(documentUsersElement)
         });
+
         remoteChanges.push({
             op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
             data: xmlSerializer.serializeToString(this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED)[0])
@@ -99,11 +114,16 @@ class XmlHeaderSection {
             let remoteDataElement = xmlParser.parseFromString(remoteOperations[i].data, "application/xml");
             if (remoteOperations[i].op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
                 let headerElement = this.header.getElementsByTagName(remoteDataElement.childNodes[0].nodeName);
-                if (headerElement.length === 0) {
-                    this.header.appendChild(remoteDataElement.childNodes[0]);
+                if (remoteDataElement.childNodes[0].nodeName === this.elementNames.IS_ENCRYPTED) {
+                    this._setIsEncrypted(remoteDataElement.childNodes[0].textContent);
                 } else {
-                    this.header.replaceChild(remoteDataElement.childNodes[0], headerElement[0]);
+                    if (headerElement.length === 0) {
+                        this.header.appendChild(remoteDataElement.childNodes[0]);
+                    } else {
+                        this.header.replaceChild(remoteDataElement.childNodes[0], headerElement[0]);
+                    }
                 }
+
             }
         }
     }
@@ -165,5 +185,9 @@ class XmlHeaderSection {
         }
     }
 }
+
+XmlHeaderSection.events = {
+    ENCRYPTION_CHANGED: 'encryption-changed'
+};
 
 export default XmlHeaderSection;

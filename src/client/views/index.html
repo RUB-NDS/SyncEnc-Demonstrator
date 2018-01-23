@@ -12,7 +12,7 @@
     <title>Quill - Test</title>
 </head>
 <body>
-<h1>Quill Editor</h1>
+<h1>Quill Editor 2</h1>
 
 <div id="toolbar">
     <select class="ql-size">
@@ -30,19 +30,19 @@
     <button class="ql-encryption"></button>
 
 </div>
-<div id="editor">
-
-</div>
+<div id="editor"></div>
+<div id="statusBar"></div>
 
 <script>
-    var toolbarOptions = [['bold', 'italic', 'underline', 'strike']];
     window.quill = new Quill('#editor', {
         theme: 'snow',
         modules: {
             toolbar: {
                 container: "#toolbar"
             },
-            'OtExtender': {}
+            'OtExtender': {
+                statusBar: "#statusBar"
+            }
         }
     });
 

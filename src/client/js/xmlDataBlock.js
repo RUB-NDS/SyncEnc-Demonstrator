@@ -1,5 +1,5 @@
 import './externalLibs/xmlsec-webcrypto.uncompressed';
-import CryptoHelper from './cryptoHelper';
+import CryptoHelper from './HelperClass';
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -49,7 +49,7 @@ export default class XmlBlock {
     }
 
     _decryptElement() {
-        let blockElement = CryptoHelper._getBlockForDecryption(this.xmlElement);
+        let blockElement = CryptoHelper.getBlockForDecryption(this.xmlElement);
 
         //decrypt the element
         let encryptedXML = new EncryptedXML();
@@ -66,7 +66,7 @@ export default class XmlBlock {
     }
 
     _encryptElement() {
-        let blockElement = CryptoHelper._getBlockForDecryption(this.xmlElement);
+        let blockElement = CryptoHelper.getBlockForDecryption(this.xmlElement);
         this._encodeAllElementsForEncryption(blockElement.childNodes[0].childNodes[0]);
         let reference = new Reference("/block/block");
         let references = [];

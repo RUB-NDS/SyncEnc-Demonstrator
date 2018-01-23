@@ -79,7 +79,12 @@ class XmlWrapper {
     }
 
     on() {
-        return this.emitter.on.apply(this.emitter, arguments);
+        if (arguments[0] === XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED) {
+            this.headerSection.on(XmlHeaderSection.events.ENCRYPTION_CHANGED, arguments[1]);
+        } else {
+            return this.emitter.on.apply(this.emitter, arguments);
+        }
+
     }
 
     /**
@@ -95,7 +100,10 @@ class XmlWrapper {
                 this.xmlDataCollection = new XmlDataCollection(
                     this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
                 return Promise.all(this.xmlDataCollection.init()).then(() => {
-                    return this.xmlDataCollection.textContentWithFormattingDelta;
+                    return {
+                        delta: this.xmlDataCollection.textContentWithFormattingDelta,
+                        isEncrypted: this.headerSection.isEncrypted
+                    };
                 });
             }.bind(this)).then(null, function (err) {
                 console.error(err);
@@ -108,7 +116,6 @@ class XmlWrapper {
                 return this.xmlDataCollection.textContentWithFormattingDelta;
             });
         }
-        console.error("Unreachable code !!");
     }
 
     encryptDocument() {
@@ -503,7 +510,8 @@ class XmlWrapper {
 XmlWrapper.events = {
     REMOTE_UPDATE: 'remote-update',
     TEXT_RELOAD: 'text-reload',
-    DOCUMENT_LOADED: 'document-loaded'
+    DOCUMENT_LOADED: 'document-loaded',
+    DOCUMENT_ENCRYPTION_CHANGED: 'document-encryption-changed'
 };
 
 export default XmlWrapper;

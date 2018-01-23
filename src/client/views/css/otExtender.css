@@ -1,3 +1,10 @@
 .ql-encryption:before {
     content: "E";
 }
+
+#statusBar {
+    border: solid #ccc;
+    border-width: 0px 1px 1px 1px;
+    padding: 5px 15px;
+    font-size: 100%;
+}

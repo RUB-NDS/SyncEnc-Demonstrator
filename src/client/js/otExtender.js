@@ -47,6 +47,7 @@ export class OtExtender extends Module {
         let encryptionButton = document.querySelector('.ql-encryption');
         if (encryptionButton != null)
             encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
+        this.statusBar = document.querySelector(options.statusBar);
     }
 
     shareDbDocumentLoaded(doc) {
@@ -58,9 +59,11 @@ export class OtExtender extends Module {
         this.xmlWrapper.loadPublicKey(StaticKeyData.publicKeyString).then(() => {
             this.xmlWrapper.loadPrivateKey(StaticKeyData.privateKeyString).then(() => {
                 //only if the remote doc can be loaded allow editing
-                this.xmlWrapper.shareDbDocumentLoaded().then((delta) => {
-                    window.quill.setContents(delta, 'api');
+                this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
+                    window.quill.setContents(res.delta, 'api');
+                    this.encryptionChanged(res.isEncrypted);
                     window.quill.enable();
+                    this.xmlWrapper.on(XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED, this.encryptionChanged.bind(this));
                 });
             });
         });
@@ -87,6 +90,18 @@ export class OtExtender extends Module {
 
     encryptDocument() {
         this.xmlWrapper.encryptDocument();
+    }
+
+    encryptionChanged(isEncrypted) {
+        if(this.statusBar !== null){
+            if(isEncrypted){
+                this.statusBar.style.backgroundColor = "green";
+                this.statusBar.textContent = "encrypted";
+            }else{
+                this.statusBar.style.backgroundColor = "#E13737";
+                this.statusBar.textContent = "unencrypted";
+            }
+        }
     }
 }
 
