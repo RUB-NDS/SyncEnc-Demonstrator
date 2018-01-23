@@ -4,7 +4,7 @@ var ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 module.exports = {
     devtool: 'inline-source-map',
-    entry: './src/client/js/OtExtender.js',
+    entry: './src/client/js/otExtender.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'OtExtender.bundle.js',
