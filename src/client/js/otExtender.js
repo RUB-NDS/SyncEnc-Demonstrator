@@ -4,6 +4,7 @@ import shareDb from 'sharedb/lib/client';
 import XmlWrapper from './xmlWrapper';
 import Delta from 'quill-delta';
 import StaticKeyData from './staticKeyData';
+import Dialog from './controls/dialog';
 
 shareDb.types.register(xmlEnc.type);
 var socket = new WebSocket('ws://' + window.location.host);
@@ -44,11 +45,30 @@ export class OtExtender extends Module {
         this.shareDbDoc = null;
         quill.on('text-change', this.update.bind(this));
         quill.enable(false);
+        this.dialogs = {};
+        this._initButtons(options);
+        this.statusBar = document.querySelector(options.statusBar);
+    }
+
+    _initButtons(options) {
+        //Init encryption button
         let encryptionButton = document.querySelector('.ql-encryption');
         if (encryptionButton != null)
             encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
-        this.statusBar = document.querySelector(options.statusBar);
+
+        //init add user button for adding new users to the document
+        let encAddUser = document.querySelector('.ql-encAddUser');
+        console.log(encAddUser);
+        if (encAddUser !== null) {
+           this.dialogs.encAddUserDialog = new Dialog("encAddUserDialog");
+           this.dialogs.encAddUserDialog.addDialogToDocument(this.addUser.bind(this));
+            encAddUser.addEventListener('click', ()=>{
+                this.dialogs.encAddUserDialog.showModal();
+            });
+        }
+
     }
+
 
     shareDbDocumentLoaded(doc) {
         this.shareDbDoc = doc;
@@ -93,15 +113,26 @@ export class OtExtender extends Module {
     }
 
     encryptionChanged(isEncrypted) {
-        if(this.statusBar !== null){
-            if(isEncrypted){
+        if (this.statusBar !== null) {
+            if (isEncrypted) {
                 this.statusBar.style.backgroundColor = "green";
                 this.statusBar.textContent = "encrypted";
-            }else{
+            } else {
                 this.statusBar.style.backgroundColor = "#E13737";
                 this.statusBar.textContent = "unencrypted";
             }
         }
+    }
+
+    addUser(dialog) {
+        if(dialog.action === Dialog.ACTION.CLOSED)
+            dialog.close();
+        if(dialog.action === Dialog.ACTION.SAVED){
+            console.log(dialog.value);
+            //TODO handle value - add user for this document
+            dialog.close();
+        }
+
     }
 }
 
