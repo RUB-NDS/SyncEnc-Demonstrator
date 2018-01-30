@@ -6,6 +6,10 @@
     content: "+";
 }
 
+.ql-encDelUser:before{
+    content: "-";
+}
+
 #statusBar {
     border: solid #ccc;
     border-width: 0px 1px 1px 1px;

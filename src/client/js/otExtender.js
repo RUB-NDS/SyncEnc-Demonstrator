@@ -4,7 +4,8 @@ import shareDb from 'sharedb/lib/client';
 import XmlWrapper from './xmlWrapper';
 import Delta from 'quill-delta';
 import StaticKeyData from './staticKeyData';
-import Dialog from './controls/addUserDialog';
+import AddUserDialog from './controls/addUserDialog'
+import RemoveUserDialog from "./controls/removeUserDialog";
 
 shareDb.types.register(xmlEnc.type);
 var socket = new WebSocket('ws://' + window.location.host);
@@ -58,15 +59,22 @@ export class OtExtender extends Module {
 
         //init add user button for adding new users to the document
         let encAddUser = document.querySelector('.ql-encAddUser');
-        console.log(encAddUser);
         if (encAddUser !== null) {
-           this.dialogs.encAddUserDialog = new Dialog("encAddUserDialog");
-           this.dialogs.encAddUserDialog.addDialogToDocument(this.addUser.bind(this));
-            encAddUser.addEventListener('click', ()=>{
+            this.dialogs.encAddUserDialog = new AddUserDialog();
+            this.dialogs.encAddUserDialog.addDialogToDocument(this.addUser.bind(this));
+            encAddUser.addEventListener('click', () => {
                 this.dialogs.encAddUserDialog.showModal();
             });
         }
-
+        //init remove user button for removing users
+        let encDelUser = document.querySelector('.ql-encDelUser');
+        if (encDelUser !== null) {
+            this.dialogs.encRemoveUserDialog = new RemoveUserDialog("encAddUserDialog");
+            this.dialogs.encRemoveUserDialog.addDialogToDocument(this.removeUser.bind(this));
+            encDelUser.addEventListener('click', () => {
+                this.dialogs.encRemoveUserDialog.showModal();
+            });
+        }
     }
 
     shareDbDocumentLoaded(doc) {
@@ -124,14 +132,24 @@ export class OtExtender extends Module {
     }
 
     addUser(dialog) {
-        if(dialog.action === Dialog.ACTION.CLOSED)
+        if (dialog.action === AddUserDialog.ACTION.CLOSED)
             dialog.close();
-        if(dialog.action === Dialog.ACTION.SAVED){
+        if (dialog.action === AddUserDialog.ACTION.SAVED) {
             console.log(dialog.value);
             //TODO handle value - add user for this document
             dialog.close();
         }
 
+    }
+
+    removeUser(dialog) {
+        if (dialog.action === RemoveUserDialog.ACTION.CLOSED)
+            dialog.close();
+        if (dialog.action === RemoveUserDialog.ACTION.SAVED) {
+            console.log(dialog.value);
+            //TODO handle value - remove user for this document
+            dialog.close();
+        }
     }
 }
 
