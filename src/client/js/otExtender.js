@@ -4,7 +4,7 @@ import shareDb from 'sharedb/lib/client';
 import XmlWrapper from './xmlWrapper';
 import Delta from 'quill-delta';
 import StaticKeyData from './staticKeyData';
-import Dialog from './controls/dialog';
+import Dialog from './controls/addUserDialog';
 
 shareDb.types.register(xmlEnc.type);
 var socket = new WebSocket('ws://' + window.location.host);
@@ -68,7 +68,6 @@ export class OtExtender extends Module {
         }
 
     }
-
 
     shareDbDocumentLoaded(doc) {
         this.shareDbDoc = doc;

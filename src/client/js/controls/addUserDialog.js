@@ -1,14 +1,14 @@
-export default class Dialog{
+export default class AddUserDialog {
 
     /**
-     * Initializes a new Dialog with the given name. The name must be unique!
+     * Initializes a new AddUserDialog with the given name. The name must be unique!
      * After initialization call addDialogToDocument().
      * @param name unique name
      */
-    constructor(name){
+    constructor(name) {
         this.name = name;
         this.dialog = null;
-        this._action = Dialog.ACTION.NO_ACTION;
+        this._action = AddUserDialog.ACTION.NO_ACTION;
     }
 
     /**
@@ -16,7 +16,7 @@ export default class Dialog{
      * @returns {string} a static string used to generate a new dialog
      * @private
      */
-    static get _htmlDialogString(){
+    static get _htmlDialogString() {
         return '<div class="ql-dialog-%NAME%">\n' +
             '    <dialog role="dialog" id="dialog-%NAME%">\n' +
             '        <form method="post">\n' +
@@ -34,20 +34,20 @@ export default class Dialog{
      * Action can be used to determine if the user has clicked save or closed.
      * @param callback that handles the click on save or close
      */
-    addDialogToDocument(callback){
-        let htmlString = Dialog._htmlDialogString.replace(new RegExp("%NAME%", 'g'), this.name);
+    addDialogToDocument(callback) {
+        let htmlString = AddUserDialog._htmlDialogString.replace(new RegExp("%NAME%", 'g'), this.name);
         let divElement = new DOMParser().parseFromString(htmlString, "text/html").getElementsByTagName("body")[0];
         let saveButton = divElement.getElementsByTagName("button")[0];
 
         saveButton.addEventListener('click', (() => {
-            this._action = Dialog.ACTION.SAVED;
-            callbackForSave(this);
+            this._action = AddUserDialog.ACTION.SAVED;
+            callback(this);
         }));
 
-        let closeButton =  divElement.getElementsByTagName("button")[1];
+        let closeButton = divElement.getElementsByTagName("button")[1];
         closeButton.addEventListener('click', (() => {
-            this._action = Dialog.ACTION.CLOSED;
-            callbackForSave(this);
+            this._action = AddUserDialog.ACTION.CLOSED;
+            callback(this);
         }));
         window.document.body.insertAdjacentElement('afterbegin', divElement);
         this.dialog = document.getElementById("dialog-" + this.name);
@@ -56,14 +56,14 @@ export default class Dialog{
     /**
      * shows the dialog
      */
-    showModal(){
+    showModal() {
         this.dialog.showModal();
     }
 
     /**
      * closes the dialog
      */
-    close(){
+    close() {
         this.dialog.getElementsByTagName("input")[0].value = "";
         this.dialog.close();
     }
@@ -72,21 +72,21 @@ export default class Dialog{
      * returns the current value of the dialog. Value should be checked after clicking on save
      * @returns {*}
      */
-    get value(){
+    get value() {
         return this.dialog.getElementsByTagName("input")[0].value;
     }
 
     /**
      * returns the action of the dialog (close, save)
-     * @returns {Dialog.ACTION}
+     * @returns {AddUserDialog.ACTION}
      */
-    get action(){
+    get action() {
         return this._action;
     }
 }
 
-Dialog.ACTION = {
+AddUserDialog.ACTION = {
     CLOSED: "close",
-    SAVED : "saved",
+    SAVED: "saved",
     NO_ACTION: "no-action"
 };
