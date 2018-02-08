@@ -14,7 +14,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert('a');
                 xmlWrapper.quillTextChanged(delta);
-                expect(xmlWrapper.documentText).to.equal(delta.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(delta);
             });
         });
 
@@ -24,7 +24,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE));
                 xmlWrapper.quillTextChanged(delta);
-                expect(xmlWrapper.documentText).to.equal(delta.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(delta);
             });
         });
 
@@ -34,7 +34,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE + randomUnsignedInt(1, 100)));
                 xmlWrapper.quillTextChanged(delta);
-                expect(xmlWrapper.documentText).to.equal(delta.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(delta);
             });
         });
 
@@ -57,27 +57,27 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
                 let delta = new Delta().insert(randomString(Math.floor(Math.random() * 10 + 1)));
                 xmlWrapper.quillTextChanged(delta);
                 deltaResult = deltaResult.compose(delta);
-                expect(xmlWrapper.documentText).to.equal(deltaResult.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(deltaResult);
             });
         };
 
         it('insert character somewhere', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let deltaResult = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE + randomUnsignedInt(1, 100)));
                 xmlWrapper.quillTextChanged(deltaResult);
                 let delta = new Delta().retain(randomUnsignedInt(1, xmlWrapper.MAX_BLOCK_SIZE)).insert("0");
                 xmlWrapper.quillTextChanged(delta);
                 deltaResult = deltaResult.compose(delta);
-                expect(xmlWrapper.documentText).to.equal(deltaResult.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(deltaResult);
             });
         });
 
         it('insert character with attribute', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert('A', {bold: true});
                 xmlWrapper.quillTextChanged(delta);
                 expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(delta);
@@ -90,13 +90,13 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it("delete a character at pos 2", function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let deltaResult = new Delta().insert("Thiis");
                 let delta = new Delta().retain(2).delete(1);
                 xmlWrapper.quillTextChanged(deltaResult);
                 xmlWrapper.quillTextChanged(delta);
                 deltaResult = deltaResult.compose(delta);
-                expect(xmlWrapper.documentText).to.equal(deltaResult.ops[0].insert);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(deltaResult);
             });
         });
 
@@ -111,7 +111,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         var deleteMultipleCharacters = function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let text = randomString(randomUnsignedInt(1, 100));
                 let deltaResult = new Delta().insert(text);
                 let startPos = randomUnsignedInt(0, text.length - 1);
@@ -121,14 +121,14 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
                 let delta = new Delta().retain(startPos).delete(deleteCount);
                 xmlWrapper.quillTextChanged(deltaResult);
                 xmlWrapper.quillTextChanged(delta);
-                let errorMsg = generateInfoMessage(deltaResult, deltaResult.compose(delta), xmlWrapper.documentText,
-                     delta);
+                let errorMsg = generateInfoMessage(deltaResult, deltaResult.compose(delta),
+                    xmlWrapper.documentTextWithFormatting.ops[0], delta);
                 deltaResult = deltaResult.compose(delta);
 
                 if (deltaResult.ops[0] === undefined)
-                    expect(xmlWrapper.documentText).to.equal('', errorMsg);
+                    expect(xmlWrapper.documentTextWithFormatting.ops[0]).to.equal(undefined, errorMsg);
                 else
-                    expect(xmlWrapper.documentText).to.equal(deltaResult.ops[0].insert, errorMsg);
+                    expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(deltaResult, errorMsg);
             });
         };
     });
@@ -146,7 +146,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         var replaceARandomChar = function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let text = randomString(randomUnsignedInt(50, 100));
                 let input = new Delta().insert(text);
                 let deltaResult = new Delta(input);
@@ -160,7 +160,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
                 let msg = generateInfoMessage(input, deltaResult.compose(delta),
                     xmlWrapper.documentText, delta);
                 deltaResult = deltaResult.compose(delta);
-                expect(xmlWrapper.documentText).to.equal(deltaResult.ops[0].insert, msg);
+                expect(xmlWrapper.documentTextWithFormatting).to.deep.equal(deltaResult);
             });
         };
     });
@@ -171,7 +171,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
             let deltaResult = new Delta();
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let op1 = new Delta().insert('a');
                 xmlWrapper.quillTextChanged(op1);
                 let op2 = new Delta().insert('\n');
@@ -197,7 +197,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ffpp][pppp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -212,7 +212,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [pffp][pppp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -227,7 +227,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ppff][pppp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -244,7 +244,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ffff][pppp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -260,7 +260,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ppff][ffpp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -278,7 +278,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ppff][ffff][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -295,7 +295,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ppff][ffff][ffpp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -312,7 +312,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ffff][ffff][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -328,7 +328,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [ffff][ffpp][pppp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -344,7 +344,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('formatting: [pppp][ppff][ffpp]', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(() =>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
@@ -361,7 +361,7 @@ describe('XMLWrapperTest - Text output check, only checks if the output is corre
         it('multiple formatting', function () {
             let doc = new Doc(initialDoc);
             let xmlWrapper = new XmlWrapper(doc);
-            return xmlWrapper.shareDbDocumentLoaded().then(()=>{
+            return xmlWrapper.shareDbDocumentLoaded().then(() => {
                 let delta = new Delta().insert(randomString(xmlWrapper.MAX_BLOCK_SIZE * 3));
                 xmlWrapper.quillTextChanged(delta);
 
