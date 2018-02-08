@@ -27,4 +27,4 @@ app.use(express.static('static'));
 app.use(express.static('src/test'));
 var server = http.createServer(app);
 server.listen(8080);
-console.log("Listing on http://localhost:8080");
+console.log("Listing on http://localhost:8080/test.html");

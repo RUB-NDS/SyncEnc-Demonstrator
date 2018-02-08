@@ -45,6 +45,8 @@ export default class xmlDataCollection {
     }
 
     getXmlDataBlockByBlockPosition(pos) {
+        if(pos < 0)
+            return null;
         if (this._dataBlockList.length > pos) {
             return this._dataBlockList[pos];
         }

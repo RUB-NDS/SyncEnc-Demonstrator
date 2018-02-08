@@ -54,7 +54,6 @@ class XmlWrapper {
             }
             this.doc.submitOp(ops, {source: "quill"});
         });
-
     }
 
     remoteUpdate(op) {
@@ -113,7 +112,10 @@ class XmlWrapper {
             this.xmlDataCollection = new XmlDataCollection(
                 this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
             return Promise.all(this.xmlDataCollection.init()).then(() => {
-                return this.xmlDataCollection.textContentWithFormattingDelta;
+                return {
+                    delta: this.xmlDataCollection.textContentWithFormattingDelta,
+                    isEncrypted: this.headerSection.isEncrypted
+                };
             });
         }
     }
@@ -300,15 +302,12 @@ class XmlWrapper {
         let newText = xmlDataBlock.text.slice(0, textPos); //keep the first characters
         newText += input.insert; //add new text
         newText += xmlDataBlock.text.slice(textPos); //add the remaining characters
-        let result = this._splitBlock(newText, xmlDataBlockPos);
+        let result = this._splitBlock(newText, xmlDataBlockPos, textPos, input.attributes, isNewBlock);
         let attributes = xmlDataBlock.getAttributes();
         if (attributes) {
             for (let i = 0; i < result.length; i++) {
                 result[i].xmlDataBlock.setAttributes(attributes);
             }
-        }
-        if (!isNewBlock) {
-            result[0].op = 'r';
         }
         return result;
     }
@@ -322,7 +321,7 @@ class XmlWrapper {
             result.push(this._createRemoteDataBlock(newText, xmlDataBlockPos, xmlDataBlock.getAttributes()));
         }
         //add the new characters with formatting
-        let tmpResult = this._splitBlock(input.insert, xmlDataBlockPos + result.length);
+        let tmpResult = this._splitBlock(input.insert, xmlDataBlockPos + result.length, textPos, input.attributes, isNewBlock);
         if (input.attributes) {
             for (let i = 0; i < tmpResult.length; i++) {
                 tmpResult[i].xmlDataBlock.setAttributes(input.attributes);
@@ -334,10 +333,6 @@ class XmlWrapper {
         newText = xmlDataBlock.text.slice(textPos, xmlDataBlock.length);
         if (newText.length != 0) {
             result.push(this._createRemoteDataBlock(newText, xmlDataBlockPos + result.length, xmlDataBlock.getAttributes()))
-        }
-
-        if (!isNewBlock) {
-            result[0].op = 'r';
         }
         return result;
     }
@@ -417,23 +412,105 @@ class XmlWrapper {
      * splits the given text into n blocks
      * @param text text that should be split
      * @param firstBlockPos the position of the block within the xml document
+     * @param textPos position of the cursor within the text
+     * @param attributes (formatting) of the current text
+     * @param isNewBlock if this block is a new one and must be added instead of replaced
      * @returns {Array} returns an array of split blocks
      * @private
      */
-    _splitBlock(text, firstBlockPos) {
+    _splitBlock(text, firstBlockPos, textPos, attributes, isNewBlock) {
         let count = Math.floor(text.length / this._MAX_BLOCK_SIZE);
         let result = [];
         if (text.length % this._MAX_BLOCK_SIZE)
             count++;
-        for (let i = 0; i < count; i++) {
-            let xmlDataBlock = new XmlDataBlock(null, this.documentKey);
-            xmlDataBlock.init();
-            let remoteDataBlock = new RemoteDataBlock(firstBlockPos + i, 'a', xmlDataBlock);
-            remoteDataBlock.text = text.slice(i * this._MAX_BLOCK_SIZE, i * this._MAX_BLOCK_SIZE + this._MAX_BLOCK_SIZE);
+        //in case of an bigger paste, do not do merging
+        if (count > 2 || text.length > this._MAX_BLOCK_SIZE + this.MAX_BLOCK_SIZE / 2) {
+            for (let i = 0; i < count; i++) {
+                let xmlDataBlock = new XmlDataBlock(null, this.documentKey);
+                xmlDataBlock.init();
+                let remoteDataBlock = new RemoteDataBlock(firstBlockPos + i, 'a', xmlDataBlock);
+                remoteDataBlock.text = text.slice(i * this._MAX_BLOCK_SIZE, i * this._MAX_BLOCK_SIZE + this._MAX_BLOCK_SIZE);
 
-            result.push(remoteDataBlock);
+                result.push(remoteDataBlock);
+            }
+        } else {
+            if (count === 1) { //no merging needed
+                let xmlDataBlock = new XmlDataBlock(null, this.documentKey);
+                xmlDataBlock.init();
+                let remoteDataBlock = new RemoteDataBlock(firstBlockPos, 'a', xmlDataBlock);
+                remoteDataBlock.text = text;
+                result.push(remoteDataBlock);
+            } else {
+                this._handleSpiltBlockWithMerge(text, firstBlockPos, textPos, attributes, result, isNewBlock);
+            }
+        }
+        if (!isNewBlock) {
+            result[0].op = 'r';
         }
         return result;
+    }
+
+    /**
+     * function tries to merge data to the previous block or splits it into two blocks
+     * @param text text that should be split
+     * @param firstBlockPos the position of the block within the xml document
+     * @param textPos position of the cursor within the text
+     * @param attributes (formatting) of the current text
+     * @param result result array of the remote change operations
+     * @param isNewBlock if this block is a new one and must be added instead of replaced
+     * @private
+     */
+    _handleSpiltBlockWithMerge(text, firstBlockPos, textPos, attributes, result, isNewBlock) {
+        let previousBlock = this._getBlockIfEqualAttributes(
+            this.xmlDataCollection.getXmlDataBlockByBlockPosition(firstBlockPos - 1), attributes);
+        let currentTextPos = 0;
+        if (previousBlock != null && previousBlock.text.length < this._MAX_BLOCK_SIZE) {
+            let block = previousBlock.clone();
+            currentTextPos = this._MAX_BLOCK_SIZE - block.text.length;
+            block.text += text.slice(0, currentTextPos);
+            result.push(new RemoteDataBlock(firstBlockPos - 1, 'r', block));
+        }
+
+        let xmlDataBlock1 = new XmlDataBlock(null, this.documentKey);
+        xmlDataBlock1.init();
+        let remoteDataBlock1 = new RemoteDataBlock(firstBlockPos, 'r', xmlDataBlock1);
+        if(isNewBlock)
+            remoteDataBlock1.op = 'a';
+        remoteDataBlock1.text = text.slice(currentTextPos, text.length);
+        if (text.length - currentTextPos > this._MAX_BLOCK_SIZE) {
+            let midPos = Math.floor((text.length - currentTextPos) / 2);
+            let xmlDataBlock2 = new XmlDataBlock(null, this.documentKey);
+            xmlDataBlock2.init();
+
+            let remoteDataBlock2 = new RemoteDataBlock(firstBlockPos + 1, 'a', xmlDataBlock2);
+            remoteDataBlock1.text = text.slice(currentTextPos, midPos);
+            remoteDataBlock2.text = text.slice(currentTextPos + midPos, text.length);
+            result.push(remoteDataBlock1);
+            result.push(remoteDataBlock2);
+        } else {
+            result.push(remoteDataBlock1);
+        }
+    }
+
+    /**
+     * Compares the attributes with the given block. If the attributes are matching, the function returns the block,
+     * else null.
+     * @param block that shall be compared to the attributes list
+     * @param attributes that shall be checked
+     * @returns {*} the block if the attributes are matching or null
+     * @private
+     */
+    _getBlockIfEqualAttributes(block, attributes) {
+        if (block === null)
+            return null;
+        if (attributes === null || attributes === undefined)
+            if (block.getAttributes() === null)
+                return block;
+            else
+                return null;
+        if (!block.compareAttributes(attributes))
+            return null;
+        return block;
     }
 
     _convertToShareDbOperation(ops) {
