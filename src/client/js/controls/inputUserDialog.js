@@ -1,10 +1,8 @@
-import AddUserDialog from "./addUserDialog";
-
-export default class Dialog{
+export default class inputUserDialog{
     constructor(name){
         this.name = name;
         this.dialog = null;
-        this._action = AddUserDialog.ACTION.NO_ACTION;
+        this._action = inputUserDialog.ACTION.NO_ACTION;
     }
 
     /**
@@ -25,13 +23,13 @@ export default class Dialog{
         let saveButton = divElement.getElementsByTagName("button")[0];
 
         saveButton.addEventListener('click', (() => {
-            this._action = Dialog.ACTION.SAVED;
+            this._action = inputUserDialog.ACTION.SAVED;
             callback(this);
         }));
 
         let closeButton = divElement.getElementsByTagName("button")[1];
         closeButton.addEventListener('click', (() => {
-            this._action = Dialog.ACTION.CLOSED;
+            this._action = inputUserDialog.ACTION.CLOSED;
             callback(this);
         }));
         window.document.body.insertAdjacentElement('afterbegin', divElement);
@@ -70,7 +68,7 @@ export default class Dialog{
     }
 }
 
-Dialog.ACTION = {
+inputUserDialog.ACTION = {
     CLOSED: "close",
     SAVED: "saved",
     NO_ACTION: "no-action"
