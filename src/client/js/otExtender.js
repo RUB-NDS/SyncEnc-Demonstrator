@@ -52,12 +52,11 @@ export class OtExtender extends Module {
     }
 
     _initButtons(options) {
-        //Init encryption button
         let encryptionButton = document.querySelector('.ql-encryption');
         if (encryptionButton != null)
             encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
 
-        //init add user button for adding new users to the document
+        //init add user button for adding new users to the documents
         let encAddUser = document.querySelector('.ql-encAddUser');
         if (encAddUser !== null) {
             this.dialogs.encAddUserDialog = new AddUserDialog();
@@ -81,18 +80,12 @@ export class OtExtender extends Module {
         this.shareDbDoc = doc;
         this.xmlWrapper = new XmlWrapper(this.shareDbDoc);
         this.xmlWrapper.on(XmlWrapper.events.REMOTE_UPDATE, this.remoteUpdate.bind(this));
-        //TODO keyserver and check doc if encrypted
-        //load private and public key
-        this.xmlWrapper.loadPublicKey(StaticKeyData.publicKeyString).then(() => {
-            this.xmlWrapper.loadPrivateKey(StaticKeyData.privateKeyString).then(() => {
-                //only if the remote doc can be loaded allow editing
-                this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
-                    window.quill.setContents(res.delta, 'api');
-                    this.encryptionChanged(res.isEncrypted);
-                    window.quill.enable();
-                    this.xmlWrapper.on(XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED, this.encryptionChanged.bind(this));
-                });
-            });
+        //only if the remote doc can be loaded allow editing
+        this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
+            window.quill.setContents(res.delta, 'api');
+            this.encryptionChanged(res.isEncrypted);
+            window.quill.enable();
+            this.xmlWrapper.on(XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED, this.encryptionChanged.bind(this));
         });
         //remote updates
         this.shareDbDoc.on('op', function (op, source) {

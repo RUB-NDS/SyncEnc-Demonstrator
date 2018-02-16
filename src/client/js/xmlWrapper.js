@@ -5,6 +5,7 @@ import XmlDataBlock from './xmlDataBlock';
 import {EventEmitter} from 'eventemitter3';
 import XmlHeaderSection from "./xmlHeaderSection";
 import xmlEnc from "xml-enc/lib/type";
+import KeyHandler from "./keyHandler";
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -18,8 +19,7 @@ class XmlWrapper {
         this._MAX_BLOCK_SIZE = 10;
         this.emitter = new EventEmitter();
         this.documentKey = null;
-        this.publicKey = null;
-        this.privateKey = null;
+        this.keyHandler = new KeyHandler(false);
     }
 
     quillTextChanged(delta) {
@@ -68,9 +68,11 @@ class XmlWrapper {
                 }
             });
             this.headerSection.setHeaderElement(headerChanges);
-            this.headerSection.loadDocumentKey(this.privateKey).then((key) => {
-                this.documentKey = key;
-                this._executeDocumentOperations(documentChanges);
+            this.keyHandler.loadPrivateKey().then((priKey) => {
+                this.headerSection.loadDocumentKey(priKey).then((key) => {
+                    this.documentKey = key;
+                    this._executeDocumentOperations(documentChanges);
+                });
             });
         } else {
             this._executeDocumentOperations(op);
@@ -94,19 +96,22 @@ class XmlWrapper {
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
         this.headerSection = new XmlHeaderSection(this.xmlDoc.documentElement.getElementsByTagName("header").item(0));
         if (this.headerSection.isEncrypted) {
-            return this.headerSection.loadDocumentKey(this.privateKey).then(function (key) {
-                this.documentKey = key;
-                this.xmlDataCollection = new XmlDataCollection(
-                    this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
-                return Promise.all(this.xmlDataCollection.init()).then(() => {
-                    return {
-                        delta: this.xmlDataCollection.textContentWithFormattingDelta,
-                        isEncrypted: this.headerSection.isEncrypted
-                    };
+            return this.keyHandler.loadPrivateKey().then((privateKey) => {
+                return this.headerSection.loadDocumentKey(privateKey).then(function (key) {
+                    this.documentKey = key;
+                    this.xmlDataCollection = new XmlDataCollection(
+                        this.xmlDoc.documentElement.getElementsByTagName("document").item(0), this.documentKey);
+                    return Promise.all(this.xmlDataCollection.init()).then(() => {
+                        return {
+                            delta: this.xmlDataCollection.textContentWithFormattingDelta,
+                            isEncrypted: this.headerSection.isEncrypted
+                        };
+                    });
+                }.bind(this)).then(null, function (err) {
+                    console.error(err);
                 });
-            }.bind(this)).then(null, function (err) {
-                console.error(err);
             });
+
         }
         else {
             this.xmlDataCollection = new XmlDataCollection(
@@ -125,48 +130,25 @@ class XmlWrapper {
         //     return;
         return this.headerSection.createDocumentKey().then((docKey) => {
             this.documentKey = docKey;
-            return this.headerSection.encryptDocumentKey(this.publicKey).then((encryptedDocumentKeyElement) => {
-                //Add the user to the header
-                let ops = [];
-                let remoteChanges = this.headerSection.addUser("admin", encryptedDocumentKeyElement);
-                Array.prototype.push.apply(ops, remoteChanges);//add the changes to the server op array
-                //all block must be replaced for encryption
-                let remoteDataBlocks = this._replaceAllBlocks();
-                let opPromises = [];
-                opPromises.push(this._convertToShareDbOperation(remoteDataBlocks));
-                return Promise.all(opPromises).then((opArray) => {
-                    for (let i = 0; i < opArray.length; i++) {
-                        Array.prototype.push.apply(ops, opArray[i]);
-                    }
-                    this.doc.submitOp(ops, {source: "quill"});
-                    console.log(this.doc.data);
+            return this.keyHandler.loadPublicKey().then((pubKey) => {
+                return this.headerSection.encryptDocumentKey(pubKey).then((encryptedDocumentKeyElement) => {
+                    //Add the user to the header
+                    let ops = [];
+                    let remoteChanges = this.headerSection.addUser("admin", encryptedDocumentKeyElement);
+                    Array.prototype.push.apply(ops, remoteChanges);//add the changes to the server op array
+                    //all block must be replaced for encryption
+                    let remoteDataBlocks = this._replaceAllBlocks();
+                    let opPromises = [];
+                    opPromises.push(this._convertToShareDbOperation(remoteDataBlocks));
+                    return Promise.all(opPromises).then((opArray) => {
+                        for (let i = 0; i < opArray.length; i++) {
+                            Array.prototype.push.apply(ops, opArray[i]);
+                        }
+                        this.doc.submitOp(ops, {source: "quill"});
+                        console.log(this.doc.data);
+                    });
                 });
             });
-        });
-    }
-
-    loadPublicKey(publicKey) {
-        publicKey = window.Helper.base64ToArrayBuffer(publicKey);
-        return window.crypto.subtle.importKey("spki", publicKey, {
-            name: "RSA-OAEP",
-            hash: {
-                name: "SHA-256"
-            }
-        }, true, ["encrypt", "wrapKey"])
-            .then((pubKey) => {
-                this.publicKey = pubKey;
-            });
-    }
-
-    loadPrivateKey(privateKey) {
-        privateKey = window.Helper.base64ToArrayBuffer(privateKey);
-        return window.crypto.subtle.importKey("pkcs8", privateKey, {
-            name: "RSA-OAEP",
-            hash: {
-                name: "SHA-256"
-            }
-        }, true, ["decrypt", "unwrapKey"]).then((priKey) => {
-            this.privateKey = priKey;
         });
     }
 
@@ -474,7 +456,7 @@ class XmlWrapper {
         let xmlDataBlock1 = new XmlDataBlock(null, this.documentKey);
         xmlDataBlock1.init();
         let remoteDataBlock1 = new RemoteDataBlock(firstBlockPos, 'r', xmlDataBlock1);
-        if(isNewBlock)
+        if (isNewBlock)
             remoteDataBlock1.op = 'a';
         remoteDataBlock1.text = text.slice(currentTextPos, text.length);
         if (text.length - currentTextPos > this._MAX_BLOCK_SIZE) {
