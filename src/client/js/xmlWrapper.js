@@ -11,7 +11,7 @@ var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
 
 class XmlWrapper {
-    constructor(doc) {
+    constructor(doc, useStaticKeys) {
         this.doc = doc;
         this.xmlDoc = null;
         this.xmlDataCollection = null;
@@ -19,7 +19,7 @@ class XmlWrapper {
         this._MAX_BLOCK_SIZE = 10;
         this.emitter = new EventEmitter();
         this.documentKey = null;
-        this.keyHandler = new KeyHandler(false);
+        this.keyHandler = new KeyHandler(useStaticKeys);
     }
 
     quillTextChanged(delta) {

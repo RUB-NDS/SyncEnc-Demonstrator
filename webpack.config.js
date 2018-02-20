@@ -3,10 +3,12 @@ var CleanWebpackPlugin = require('clean-webpack-plugin');
 
 module.exports = {
     devtool: 'inline-source-map',
-    entry: './src/client/js/otExtender.js',
+    entry: {
+       otExtender: './src/client/js/otExtender.js'
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'OtExtender.bundle.js',
+        filename: '[name].bundle.js',
     },
     module: {
         rules: [

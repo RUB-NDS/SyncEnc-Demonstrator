@@ -3,7 +3,6 @@ import xmlEnc from 'xml-enc';
 import shareDb from 'sharedb/lib/client';
 import XmlWrapper from './xmlWrapper';
 import Delta from 'quill-delta';
-import StaticKeyData from './staticKeyData';
 import AddUserDialog from './controls/addUserDialog'
 import RemoveUserDialog from "./controls/removeUserDialog";
 
@@ -49,6 +48,11 @@ export class OtExtender extends Module {
         this.dialogs = {};
         this._initButtons(options);
         this.statusBar = document.querySelector(options.statusBar);
+        if (options.useStaticKeys !== undefined) {
+            this.useStaticKeys = options.useStaticKeys;
+        } else {
+            this.useStaticKeys = false;
+        }
     }
 
     _initButtons(options) {
@@ -78,7 +82,7 @@ export class OtExtender extends Module {
 
     shareDbDocumentLoaded(doc) {
         this.shareDbDoc = doc;
-        this.xmlWrapper = new XmlWrapper(this.shareDbDoc);
+        this.xmlWrapper = new XmlWrapper(this.shareDbDoc, this.useStaticKeys);
         this.xmlWrapper.on(XmlWrapper.events.REMOTE_UPDATE, this.remoteUpdate.bind(this));
         //only if the remote doc can be loaded allow editing
         this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
