@@ -119,6 +119,10 @@ export default class KeyHandler {
                     this.publicKeyPromiseSolved = null;
                 }, 50000);
             });
+        }else{
+            return new Promise((resolve) =>{
+               resolve(this._publicKey);
+            });
         }
     }
 
@@ -129,33 +133,14 @@ export default class KeyHandler {
     _resultMessage() {
         console.log("received msg: " + event.data);
         if (event.data.data === 'privKey') {
-            crypto.subtle.exportKey("pkcs8", event.data.key).then((key) => {
-                crypto.subtle.importKey("pkcs8", key, {
-                        name: "RSA-OAEP",
-                        hash: {
-                            name: "SHA-256"
-                        }
-                    }, false, ["decrypt", "unwrapKey"]
-                ).then((privKey) => {
-                    this.isPrivateKeyRequested = false;
-                    this._privateKey = privKey;
-                    this.privateKeyPromiseSolved(privKey);
-                });
-            });
+            this.isPrivateKeyRequested = false;
+            this._privateKey = event.data.key;
+            this.privateKeyPromiseSolved(event.data.key);
         }
-        //reimport key for the support of key wrapping
+
         if (event.data.data === 'pubKey') {
-            crypto.subtle.exportKey("spki", event.data.key).then((key) => {
-                crypto.subtle.importKey("spki", key, {
-                        name: "RSA-OAEP",
-                        hash: {
-                            name: "SHA-256"
-                        }
-                    }, true, ["encrypt", "wrapKey"]
-                ).then((pubKey) => {
-                    this.publicKeyPromiseSolved(pubKey);
-                });
-            });
+            this._publicKey = event.data.key;
+            this.publicKeyPromiseSolved(event.data.key);
         }
     }
 }
