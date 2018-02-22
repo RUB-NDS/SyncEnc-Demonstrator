@@ -20,6 +20,8 @@ class XmlWrapper {
         this.emitter = new EventEmitter();
         this.documentKey = null;
         this.keyHandler = new KeyHandler(useStaticKeys);
+        this.isWaitingForPrivateKey = false;
+        this.storedOps = [];
     }
 
     quillTextChanged(delta) {
@@ -67,15 +69,31 @@ class XmlWrapper {
                     documentChanges.push(op);
                 }
             });
+
             this.headerSection.setHeaderElement(headerChanges);
-            this.keyHandler.loadPrivateKey().then((priKey) => {
-                this.headerSection.loadDocumentKey(priKey).then((key) => {
-                    this.documentKey = key;
-                    this._executeDocumentOperations(documentChanges);
+            if (this.headerSection.isEncrypted) {
+                window.quill.disable();
+                this.isWaitingForPrivateKey = true;
+                this.keyHandler.loadPrivateKey(false).then((priKey) => {
+                    this.headerSection.loadDocumentKey(priKey).then((key) => {
+                        this.documentKey = key;
+                        this._executeDocumentOperations(documentChanges);
+                        for (let i = 0; i < this.storedOps.length; i++) {
+                            this._executeDocumentOperations(this.storedOps[i]);
+                        }
+                        this.storedOps = [];
+                        window.quill.enable();
+                        this.isWaitingForPrivateKey = false;
+                    });
                 });
-            });
+            }
         } else {
-            this._executeDocumentOperations(op);
+            if (this.isWaitingForPrivateKey) {
+                this.storedOps.push(op);
+            } else {
+                this._executeDocumentOperations(op);
+            }
+
         }
     }
 
@@ -156,26 +174,23 @@ class XmlWrapper {
         let resultDeltaPromises = [];
         op.forEach(function (op) {
             let remoteDataBlock = new RemoteDataBlock(op, this.documentKey);
-            resultDeltaPromises.push(remoteDataBlock.initRemoteData().then((remoteDataBlock) => {
-                switch (remoteDataBlock.op) {
-                    case xmlEnc.operations.ADD_DOCUMENT_BLOCK:
-                        return this._insertTextInQuill(remoteDataBlock);
-                        break;
-                    case xmlEnc.operations.REPLACE_DOCUMENT_BLOCK:
-                        return this._replaceTextInQuill(remoteDataBlock);
-                        break;
-                    case xmlEnc.operations.REMOVE_DOCUMENT_BLOCK:
-                        return this._deleteTextInQuill(remoteDataBlock);
-                        break;
-                }
-                console.log("pos: " + remoteDataBlock.pos + "offset :" + this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos));
-            }));
+            resultDeltaPromises.push(remoteDataBlock.initRemoteData());
         }.bind(this));
 
-        Promise.all(resultDeltaPromises).then((delta) => {
+        Promise.all(resultDeltaPromises).then((remoteDataBlocks) => {
             let resultDelta = new Delta();
-            for (let i = 0; i < delta.length; i++) {
-                resultDelta = resultDelta.compose(delta[i]);
+            for (let i = 0; i < remoteDataBlocks.length; i++) {
+                switch (remoteDataBlocks[i].op) {
+                    case xmlEnc.operations.ADD_DOCUMENT_BLOCK:
+                        resultDelta = resultDelta.compose(this._insertTextInQuill(remoteDataBlocks[i]));
+                        break;
+                    case xmlEnc.operations.REPLACE_DOCUMENT_BLOCK:
+                        resultDelta = resultDelta.compose(this._replaceTextInQuill(remoteDataBlocks[i]));
+                        break;
+                    case xmlEnc.operations.REMOVE_DOCUMENT_BLOCK:
+                        resultDelta = resultDelta.compose(this._deleteTextInQuill(remoteDataBlocks[i]));
+                        break;
+                }
             }
             return resultDelta;
         }).then((resultDelta) => {

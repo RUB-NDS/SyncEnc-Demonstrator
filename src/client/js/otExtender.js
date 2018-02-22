@@ -45,14 +45,14 @@ export class OtExtender extends Module {
         this.shareDbDoc = null;
         quill.on('text-change', this.update.bind(this));
         quill.enable(false);
-        this.dialogs = {};
-        this._initButtons(options);
-        this.statusBar = document.querySelector(options.statusBar);
         if (options.useStaticKeys !== undefined) {
             this.useStaticKeys = options.useStaticKeys;
         } else {
             this.useStaticKeys = false;
         }
+        this.dialogs = {};
+        this._initButtons(options);
+        this.statusBar = document.querySelector(options.statusBar);
     }
 
     _initButtons(options) {
@@ -148,6 +148,7 @@ export class OtExtender extends Module {
             dialog.close();
         }
     }
+
 }
 
 if (window.Quill) {

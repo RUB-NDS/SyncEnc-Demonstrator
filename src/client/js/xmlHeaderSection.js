@@ -123,7 +123,6 @@ class XmlHeaderSection {
                         this.header.replaceChild(remoteDataElement.childNodes[0], headerElement[0]);
                     }
                 }
-
             }
         }
     }
