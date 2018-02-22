@@ -184,7 +184,11 @@ export default class KeyHandler {
         }
 
         if (event.data.data === 'error') {
-            //TODO add error
+            let statusBar = document.querySelector(window.quill.getModule("OtExtender").options.statusBar);
+            if(statusBar !== undefined && statusBar !== null){
+                statusBar.style.backgroundColor = "#E13737";
+                statusBar.textContent = "Error: " + event.data.info + " Please try to reload the page and try it again";
+            }
             if (this.privateKeyPromiseRejected != null) {
                 this.privateKeyPromiseRejected();
                 this.privateKeyPromiseSolved = null;
