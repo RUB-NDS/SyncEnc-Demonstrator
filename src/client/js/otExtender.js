@@ -43,6 +43,9 @@ export class OtExtender extends Module {
         this.options = options;
         this.xmlWrapper = null;
         this.shareDbDoc = null;
+        this.encryptionButton = null;
+        this.encAddUserButton = null;
+        this.encDelUserButton = null;
         quill.on('text-change', this.update.bind(this));
         quill.enable(false);
         if (options.useStaticKeys !== undefined) {
@@ -53,28 +56,34 @@ export class OtExtender extends Module {
         this.dialogs = {};
         this._initButtons(options);
         this.statusBar = document.querySelector(options.statusBar);
+        this.disableButtons();
     }
 
     _initButtons(options) {
-        let encryptionButton = document.querySelector('.ql-encryption');
-        if (encryptionButton != null)
-            encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
+        this.encryptionButton = document.querySelector('.ql-encryption');
+        if (this.encryptionButton != null) {
+            this.encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
+            //this.encryptionButton.style = "display: none;";
+        }
+
 
         //init add user button for adding new users to the documents
-        let encAddUser = document.querySelector('.ql-encAddUser');
-        if (encAddUser !== null) {
+        this.encAddUserButton = document.querySelector('.ql-encAddUser');
+        if (this.encAddUserButton !== null) {
+            //this.encAddUserButton.style = "display: none;";
             this.dialogs.encAddUserDialog = new AddUserDialog();
             this.dialogs.encAddUserDialog.addDialogToDocument(this.addUser.bind(this));
-            encAddUser.addEventListener('click', () => {
+            this.encAddUserButton.addEventListener('click', () => {
                 this.dialogs.encAddUserDialog.showModal();
             });
         }
         //init remove user button for removing users
-        let encDelUser = document.querySelector('.ql-encDelUser');
-        if (encDelUser !== null) {
+        this.encDelUserButton = document.querySelector('.ql-encDelUser');
+        if (this.encDelUserButton !== null) {
+            //this.encDelUserButton.style = "display: none;";
             this.dialogs.encRemoveUserDialog = new RemoveUserDialog("encAddUserDialog");
             this.dialogs.encRemoveUserDialog.addDialogToDocument(this.removeUser.bind(this));
-            encDelUser.addEventListener('click', () => {
+            this.encDelUserButton.addEventListener('click', () => {
                 this.dialogs.encRemoveUserDialog.showModal();
             });
         }
@@ -88,9 +97,12 @@ export class OtExtender extends Module {
         this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
             window.quill.setContents(res.delta, 'api');
             this.encryptionChanged(res.isEncrypted);
-            window.quill.enable();
             this.xmlWrapper.on(XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED, this.encryptionChanged.bind(this));
+            this.xmlWrapper.executeStoredDocumentOperations();
+            this.enableButtons();
+            window.quill.enable();
         });
+
         //remote updates
         this.shareDbDoc.on('op', function (op, source) {
             if (source === 'quill') return;
@@ -122,10 +134,11 @@ export class OtExtender extends Module {
                 this.statusBar.style.backgroundColor = "green";
                 this.statusBar.textContent = "encrypted";
             } else {
-                this.statusBar.style.backgroundColor = "#E13737";
+                this.statusBar.style.backgroundColor = "yellow";
                 this.statusBar.textContent = "unencrypted";
             }
         }
+        this.enableButtons();
     }
 
     addUser(dialog) {
@@ -133,7 +146,7 @@ export class OtExtender extends Module {
             dialog.close();
         if (dialog.action === AddUserDialog.ACTION.SAVED) {
             console.log(dialog.value);
-            //TODO handle value - add user for this document
+            this.xmlWrapper.addUserToDocument(dialog.value);
             dialog.close();
         }
 
@@ -144,8 +157,40 @@ export class OtExtender extends Module {
             dialog.close();
         if (dialog.action === RemoveUserDialog.ACTION.SAVED) {
             console.log(dialog.value);
-            //TODO handle value - remove user for this document
+            this.xmlWrapper.removeUserFromDocument(dialog.value);
             dialog.close();
+        }
+    }
+
+    setStatusBarMessage(message, color) {
+        if (this.statusBar !== null && this.statusBar !== undefined) {
+            this.statusBar.style.backgroundColor = color;
+            this.statusBar.textContent = message;
+        }
+    }
+
+    disableButtons() {
+        this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+        this.encAddUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+        this.encDelUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+    }
+
+    enableButtons() {
+        if (this.xmlWrapper.headerSection.isEncrypted === true) {
+            this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+            this.encAddUserButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
+            this.encDelUserButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
+        } else {
+            this.encryptionButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
+            this.encAddUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+            this.encDelUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+        }
+    }
+
+    static get BUTTON_STYLE() {
+        return {
+            HIDDEN: "display: none;",
+            VISIBLE: ""
         }
     }
 

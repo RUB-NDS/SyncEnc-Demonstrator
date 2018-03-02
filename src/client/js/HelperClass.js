@@ -27,4 +27,18 @@ export default class HelperClass{
             return true;
         return false;
     }
+
+    /**
+     * Searches the given value within the string array
+     * @param array with string values
+     * @param value that will be searched case sensitive
+     * @returns {boolean} true if the value was found
+     */
+    static searchStringInArray(array, value){
+        for(let i = 0; i < array.length; i++){
+            if(array[i] === value)
+                return true;
+        }
+        return false;
+    }
 }

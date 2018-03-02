@@ -19,7 +19,8 @@ export default class inputUserDialog{
      * @param callback that handles the click on save or close
      */
     addDialogToDocument(callback) {
-        let divElement = new DOMParser().parseFromString(this._htmlDialogString(), "text/html").getElementsByTagName("body")[0];
+        let divElement = new DOMParser().parseFromString(this._htmlDialogString(), "text/html")
+        .getElementById("dialog-" + this.name);
         let saveButton = divElement.getElementsByTagName("button")[0];
 
         saveButton.addEventListener('click', (() => {
@@ -33,7 +34,8 @@ export default class inputUserDialog{
             callback(this);
         }));
         window.document.body.insertAdjacentElement('afterbegin', divElement);
-        this.dialog = document.getElementById("dialog-" + this.name);
+        this.dialog = divElement;
+        console.log(this.dialog);
     }
 
     /**

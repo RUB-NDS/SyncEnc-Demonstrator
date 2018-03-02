@@ -6,6 +6,7 @@ import {EventEmitter} from 'eventemitter3';
 import XmlHeaderSection from "./xmlHeaderSection";
 import xmlEnc from "xml-enc/lib/type";
 import KeyHandler from "./keyHandler";
+import HelperClass from "./HelperClass";
 
 var xmlParser = new window.DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -22,6 +23,7 @@ class XmlWrapper {
         this.keyHandler = new KeyHandler(useStaticKeys);
         this.isWaitingForPrivateKey = false;
         this.storedOps = [];
+        this.otExtenderModule = window.quill.getModule("OtExtender");
     }
 
     quillTextChanged(delta) {
@@ -73,17 +75,16 @@ class XmlWrapper {
             this.headerSection.setHeaderElement(headerChanges);
             if (this.headerSection.isEncrypted) {
                 window.quill.disable();
+                this.otExtenderModule.disableButtons();
                 this.isWaitingForPrivateKey = true;
                 this.keyHandler.loadPrivateKey(false).then((priKey) => {
+                    this.headerSection.user = this.keyHandler.user;
                     this.headerSection.loadDocumentKey(priKey).then((key) => {
                         this.documentKey = key;
                         this._executeDocumentOperations(documentChanges);
-                        for (let i = 0; i < this.storedOps.length; i++) {
-                            this._executeDocumentOperations(this.storedOps[i]);
-                        }
-                        this.storedOps = [];
+                        this.executeStoredDocumentOperations();
                         window.quill.enable();
-                        this.isWaitingForPrivateKey = false;
+                        this.otExtenderModule.enableButtons();
                     });
                 });
             }
@@ -97,13 +98,20 @@ class XmlWrapper {
         }
     }
 
+    executeStoredDocumentOperations() {
+        for (let i = 0; i < this.storedOps.length; i++) {
+            this._executeDocumentOperations(this.storedOps[i]);
+        }
+        this.storedOps = [];
+        this.isWaitingForPrivateKey = false;
+    }
+
     on() {
         if (arguments[0] === XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED) {
             this.headerSection.on(XmlHeaderSection.events.ENCRYPTION_CHANGED, arguments[1]);
         } else {
             return this.emitter.on.apply(this.emitter, arguments);
         }
-
     }
 
     /**
@@ -114,7 +122,9 @@ class XmlWrapper {
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
         this.headerSection = new XmlHeaderSection(this.xmlDoc.documentElement.getElementsByTagName("header").item(0));
         if (this.headerSection.isEncrypted) {
+            this.isWaitingForPrivateKey = true;
             return this.keyHandler.loadPrivateKey().then((privateKey) => {
+                this.headerSection.user = this.keyHandler.user;
                 return this.headerSection.loadDocumentKey(privateKey).then(function (key) {
                     this.documentKey = key;
                     this.xmlDataCollection = new XmlDataCollection(
@@ -126,12 +136,11 @@ class XmlWrapper {
                         };
                     });
                 }.bind(this)).then(null, function (err) {
+                    //Do if user is not part of the stuff
                     console.error(err);
                 });
             });
-
-        }
-        else {
+        } else {
             this.xmlDataCollection = new XmlDataCollection(
                 this.xmlDoc.documentElement.getElementsByTagName("document").item(0));
             return Promise.all(this.xmlDataCollection.init()).then(() => {
@@ -149,10 +158,16 @@ class XmlWrapper {
         return this.headerSection.createDocumentKey().then((docKey) => {
             this.documentKey = docKey;
             return this.keyHandler.loadPublicKey().then((pubKey) => {
-                return this.headerSection.encryptDocumentKey(pubKey).then((encryptedDocumentKeyElement) => {
-                    //Add the user to the header
-                    let ops = [];
-                    let remoteChanges = this.headerSection.addUser("admin", encryptedDocumentKeyElement);
+                this.headerSection.user = this.keyHandler.user;
+                //Add the user to the header
+                let ops = [];
+                let myUser = [];
+                myUser.push({
+                    user: this.keyHandler.user,
+                    publicKey: pubKey
+                });
+
+                return this.headerSection.addUsers(myUser, this.documentKey).then((remoteChanges) => {
                     Array.prototype.push.apply(ops, remoteChanges);//add the changes to the server op array
                     //all block must be replaced for encryption
                     let remoteDataBlocks = this._replaceAllBlocks();
@@ -164,6 +179,53 @@ class XmlWrapper {
                         }
                         this.doc.submitOp(ops, {source: "quill"});
                         console.log(this.doc.data);
+                    });
+                });
+            });
+        });
+    }
+
+    addUserToDocument(user) {
+        //Get all current users of the document to generate a new document key (user cannot decrypt older versions)
+        let userList = this.headerSection.getUserList();
+        if (HelperClass.searchStringInArray(userList, user) === true) {
+            return;
+        }
+        userList.push(user);
+        return this._handleAddOrRemoveUserToDocument(userList);
+
+    }
+
+    removeUserFromDocument(user) {
+        let userList = this.headerSection.getUserList();
+        if (HelperClass.searchStringInArray(userList, user) === true) {
+            if(userList.indexOf(user) !== -1){
+                userList.splice(userList.indexOf(user), 1);
+                this.headerSection.removeUser(user);
+            }
+            return this._handleAddOrRemoveUserToDocument(userList);
+        }
+    }
+
+    _handleAddOrRemoveUserToDocument(userList){
+        this.keyHandler.getPublicKeysByUsers(userList).then((resultArray) => {
+            this.headerSection.createDocumentKey().then((docKey) => {
+                this.documentKey = docKey;
+                this.headerSection.addUsers(resultArray, docKey).then((remoteChanges) => {
+                    //Add the user to the header
+                    let ops = [];
+                    Array.prototype.push.apply(ops, remoteChanges);//add the changes to the server op array
+                    //all block must be replaced for encryption
+                    let remoteDataBlocks = this._replaceAllBlocks();
+                    let opPromises = [];
+                    opPromises.push(this._convertToShareDbOperation(remoteDataBlocks));
+                    return Promise.all(opPromises).then((opArray) => {
+                        for (let i = 0; i < opArray.length; i++) {
+                            Array.prototype.push.apply(ops, opArray[i]);
+                        }
+                        this.doc.submitOp(ops, {source: "quill"});
+                        console.log(this.doc.data);
+                        console.log(this.headerSection.getUserList());
                     });
                 });
             });

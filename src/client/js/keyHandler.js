@@ -21,6 +21,12 @@ export default class KeyHandler {
         this.isIframeLoaded = false;
         this.isPrivateKeyRequired = false;
         this.isPrivateKeyRequested = false;
+        this.userListPromiseResolved = null;
+        this.userListPromiseRejected = null;
+        this.isMultipleUsersRequested = false;
+        this.userList = [];
+        this.userListPos = 0;
+        this.userListPublicKeys = [];
         this.loginDialog = null;
         this.user = null;
         if (!useStaticKeys) {
@@ -33,26 +39,38 @@ export default class KeyHandler {
             }
             this.isIframeLoaded = true;
         });
+        this.otExtenderModule = window.quill.getModule("OtExtender");
     }
 
+    /**
+     * Handles the login dialog
+     * @param dialog dialog object
+     * @private
+     */
     _loginUser(dialog) {
         if (dialog.action === UserLoginDialog.ACTION.CLOSED) {
             dialog.close();
+            this.otExtenderModule.setStatusBarMessage("Login failed. Please reload the page!", "#E13737");
         } else if (dialog.action === UserLoginDialog.ACTION.SAVED) {
             this.user = dialog.username;
             this.password = dialog.password;
             if (dialog.request === UserLoginDialog.REQUEST.PRIVATE_KEY)
                 this._sendPrivateKeyRequestToKeyserver();
             else if (dialog.request === UserLoginDialog.REQUEST.PUBLIC_KEY)
-                this._sendPublicKeyRequestToKeyserver();
+                this._sendPublicKeyRequestToKeyserver(this.user);
             dialog.close();
         }
     }
 
-    _sendPublicKeyRequestToKeyserver() {
+    /**
+     * Sends a public key request for the corresponding user to the kms backend
+     * @param user name for the requested public key
+     * @private
+     */
+    _sendPublicKeyRequestToKeyserver(user) {
         const msg = {
             'task': 'getPubKey',
-            'username': this.user
+            'username': user
         };
         this.iframe.contentWindow.postMessage(msg, 'https://neon.cloud.nds.rub.de/integrated');
     }
@@ -148,7 +166,7 @@ export default class KeyHandler {
             if (this.user === null) {
                 this.loginDialog.showModal(UserLoginDialog.REQUEST.PUBLIC_KEY);
             } else {
-                this._sendPublicKeyRequestToKeyserver();
+                this._sendPublicKeyRequestToKeyserver(this.user);
             }
 
             return new Promise((resolve, reject) => {
@@ -172,23 +190,42 @@ export default class KeyHandler {
      */
     _resultMessage() {
         console.log("received msg: " + event.data);
+        //handle private key data
         if (event.data.data === 'privKey') {
             this.isPrivateKeyRequested = false;
             this._privateKey = event.data.key;
             this.privateKeyPromiseSolved(event.data.key);
         }
 
+        //handle public key data
         if (event.data.data === 'pubKey') {
-            this._publicKey = event.data.key;
-            this.publicKeyPromiseSolved(event.data.key);
+            /*if multiple users are requested, they must be handled sequentially. The keyserver does not return
+            any user information, so it is impossible to figure out which key belongs to which user */
+            if (this.isMultipleUsersRequested) {
+                this.userListPublicKeys[this.userListPos] = {
+                    user: this.userList[this.userListPos],
+                    publicKey: event.data.key
+                };
+                this.userListPos++;
+                if (this.userList[this.userListPos] !== undefined && this.userList[this.userListPos] !== null) {
+                    this._sendPublicKeyRequestToKeyserver(this.userList[this.userListPos]);
+                } else {
+                    this.isMultipleUsersRequested = false;
+                    this.userListPromiseResolved(this.userListPublicKeys);
+                }
+            } else {
+                //if only the current user requests his own public key (used for first time encryption)
+                this._publicKey = event.data.key;
+                this.publicKeyPromiseSolved(event.data.key);
+            }
         }
 
+        //handle error from keyserver
         if (event.data.data === 'error') {
-            let statusBar = document.querySelector(window.quill.getModule("OtExtender").options.statusBar);
-            if(statusBar !== undefined && statusBar !== null){
-                statusBar.style.backgroundColor = "#E13737";
-                statusBar.textContent = "Error: " + event.data.info + " Please try to reload the page and try it again";
-            }
+
+
+            this.otExtenderModule.setStatusBarMessage("Error: " + event.data.info +
+                " Please reload the page and try it again.", "#E13737");
             if (this.privateKeyPromiseRejected != null) {
                 this.privateKeyPromiseRejected();
                 this.privateKeyPromiseSolved = null;
@@ -201,6 +238,29 @@ export default class KeyHandler {
                 this.publicKeyPromiseRejected = null;
             }
 
+            if (this.userListPromiseRejected != null) {
+                this.userListPromiseRejected();
+                this.userListPromiseRejected = null;
+                this.userListPromiseResolved = null;
+            }
         }
+    }
+
+    /**
+     * Requests multiple public key requests from the kms backend
+     * @param users list of user names
+     * @returns {Promise<any>} returns a promise which will be solved after all public keys haven been received or the
+     * promise will be rejected
+     */
+    getPublicKeysByUsers(users) {
+        this.isMultipleUsersRequested = true;
+        this.userListPublicKeys = [];
+        this.userList = users;
+        this.userListPos = 0;
+        this._sendPublicKeyRequestToKeyserver(this.userList[this.userListPos]);
+        return new Promise((resolve, reject) => {
+            this.userListPromiseResolved = resolve;
+            this.userListPromiseRejected = reject;
+        });
     }
 }

@@ -14,13 +14,13 @@ class XmlHeaderSection {
     constructor(header, user) {
         this.header = header;
         this.documentKey = null;
-        this.user = 'admin';
+        this.user = user;
         this.emitter = new EventEmitter();
     }
 
     get isEncrypted() {
         try {
-            return (this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED).item(0).textContent === 'true');
+            return (this.header.getElementsByTagName(XmlHeaderSection.elementNames.IS_ENCRYPTED).item(0).textContent === 'true');
         } catch (e) {
             return false;
         }
@@ -29,11 +29,11 @@ class XmlHeaderSection {
     _setIsEncrypted(value) {
         if (this.isEncrypted === HelperClass.convertStringToBoolean(value))
             return;
-        if (this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED).length === 0) {
-            let isEncryptedElement = xmlDoc.createElement(this.elementNames.IS_ENCRYPTED);
+        if (this.header.getElementsByTagName(XmlHeaderSection.elementNames.IS_ENCRYPTED).length === 0) {
+            let isEncryptedElement = xmlDoc.createElement(XmlHeaderSection.elementNames.IS_ENCRYPTED);
             this.header.appendChild(isEncryptedElement);
         }
-        this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED)[0].textContent = value;
+        this.header.getElementsByTagName(XmlHeaderSection.elementNames.IS_ENCRYPTED)[0].textContent = value;
         //encryption was enabled / disabled
         this.emitter.emit(XmlHeaderSection.events.ENCRYPTION_CHANGED, this.isEncrypted);
     }
@@ -45,7 +45,12 @@ class XmlHeaderSection {
     loadDocumentKey(privateKey) {
         let user = this._getUserByName(this.user);
         if (user === null) {
-            throw new Error("User error");
+            window.quill.getModule("OtExtender").setStatusBarMessage(
+                "The User '" + this.user + "' was not found. Please ask the document owner to add you.",
+                "red"
+            );
+            window.quill.disable();
+            throw new Error("The User '" + this.user + "' was not found. Please ask the document owner to add you.");
         }
         let block = HelperClass.getBlockForDecryption(user.getElementsByTagName('key')[0]);
         let encryptedXML = new EncryptedXML();
@@ -71,7 +76,11 @@ class XmlHeaderSection {
         });
     }
 
-    addUser(name, keyElement) {
+    get _documentUsersElement(){
+        return this.header.getElementsByTagName(XmlHeaderSection.elementNames.DOCUMENT_USERS)[0];
+    }
+
+    _addUser(name, keyElement) {
         let documentUsersElement = this.header.getElementsByTagName('documentUsers');
         if (documentUsersElement.length === 0) {
             documentUsersElement = xmlDoc.createElement('documentUsers');
@@ -82,7 +91,7 @@ class XmlHeaderSection {
             throw new Error("document contains more than one User section!");
         }
         else {
-            let user = this._getUserByName(this.user);
+            let user = this._getUserByName(name);
             documentUsersElement = documentUsersElement[0];
             if (user === null) {
                 let userElement = xmlDoc.createElement('user');
@@ -95,18 +104,40 @@ class XmlHeaderSection {
                 user.replaceChild(keyElement.childNodes[0], user.getElementsByTagName("key")[0]);
             }
         }
-        this._setIsEncrypted('true');
-        let remoteChanges = [];
-        remoteChanges.push({
-            op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
-            data: xmlSerializer.serializeToString(documentUsersElement)
-        });
+    }
 
-        remoteChanges.push({
-            op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
-            data: xmlSerializer.serializeToString(this.header.getElementsByTagName(this.elementNames.IS_ENCRYPTED)[0])
+    addUsers(userObject, documentKey){
+        this.documentKey = documentKey;
+        let addUserPromises = [];
+        for(let i = 0; i < userObject.length; i++){
+            addUserPromises.push(
+                this.encryptDocumentKey(userObject[i].publicKey).then((encryptedDocumentKeyElement) => {
+                    this._addUser(userObject[i].user, encryptedDocumentKeyElement);
+                })
+            );
+        }
+
+        return Promise.all(addUserPromises).then(() =>{
+            this._setIsEncrypted('true');
+            let remoteChanges = [];
+            remoteChanges.push({
+                op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
+                data: xmlSerializer.serializeToString(this._documentUsersElement)
+            });
+
+            remoteChanges.push({
+                op: xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT,
+                data: xmlSerializer.serializeToString(this.header.getElementsByTagName(XmlHeaderSection.elementNames.IS_ENCRYPTED)[0])
+            });
+            return remoteChanges;
         });
-        return remoteChanges;
+    }
+
+    removeUser(user){
+        let headerUser = this._getUserByName(user);
+        if(headerUser !== null){
+            headerUser.parentElement.removeChild(headerUser);
+        }
     }
 
     setHeaderElement(remoteOperations) {
@@ -114,7 +145,7 @@ class XmlHeaderSection {
             let remoteDataElement = xmlParser.parseFromString(remoteOperations[i].data, "application/xml");
             if (remoteOperations[i].op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
                 let headerElement = this.header.getElementsByTagName(remoteDataElement.childNodes[0].nodeName);
-                if (remoteDataElement.childNodes[0].nodeName === this.elementNames.IS_ENCRYPTED) {
+                if (remoteDataElement.childNodes[0].nodeName === XmlHeaderSection.elementNames.IS_ENCRYPTED) {
                     this._setIsEncrypted(remoteDataElement.childNodes[0].textContent);
                 } else {
                     if (headerElement.length === 0) {
@@ -135,6 +166,25 @@ class XmlHeaderSection {
             this.documentKey = key;
             return key;
         });
+    }
+
+    /**
+     * Returns all the current Users of the document
+     * @returns {Array} with all usernames
+     */
+    getUserList(){
+        let documentUsersElement = this.header.getElementsByTagName('documentUsers');
+        if (documentUsersElement.length === 0) {
+            return [];
+        }else{
+            let users = xpath.select("//header/documentUsers/user/name", this.header);
+            let result = [];
+            for(let i = 0; i < users.length; i++){
+                result.push(users[i].textContent);
+            }
+            console.log(result);
+            return result;
+        }
     }
 
     _getUserByName(name) {
@@ -174,7 +224,7 @@ class XmlHeaderSection {
         return keyBlockElement;
     }
 
-    get elementNames() {
+    static get elementNames() {
         return {
             DOCUMENT_USERS: 'documentUsers',
             IS_ENCRYPTED: 'isEncrypted',
