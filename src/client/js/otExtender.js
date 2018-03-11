@@ -6,9 +6,10 @@ import Delta from 'quill-delta';
 import AddUserDialog from './controls/addUserDialog'
 import RemoveUserDialog from "./controls/removeUserDialog";
 
+//register shareDB type for xml encryption
 shareDb.types.register(xmlEnc.type);
-var socket = new WebSocket('ws://' + window.location.host);
-var connection = new shareDb.Connection(socket);
+var socket = new WebSocket('ws://' + window.location.host); //new socket
+var connection = new shareDb.Connection(socket); //new connection
 
 window.disconnect = function () {
     connection.close();
@@ -19,8 +20,10 @@ window.connect = function () {
     connection.bindToSocket(socket);
 };
 
+//connect to the server
 var doc = connection.get('test', 'xml-enc');
 
+//subscribe the document
 new Promise((resolve, reject) => {
     doc.subscribe(function (err) {
         if (err) {
@@ -30,6 +33,7 @@ new Promise((resolve, reject) => {
         }
     });
 }).then((doc) => {
+    //if the document has been loaded successfully
     if (doc.data === undefined)
         doc.create('<root><header><isEncrypted>false</isEncrypted></header><document></document></root>', 'xml-enc');
     let otExtender = window.quill.getModule('OtExtender');
@@ -54,12 +58,16 @@ export class OtExtender extends Module {
             this.useStaticKeys = false;
         }
         this.dialogs = {};
-        this._initButtons(options);
+        this._initButtons();
         this.statusBar = document.querySelector(options.statusBar);
         this.disableButtons();
     }
 
-    _initButtons(options) {
+    /**
+     * Initializes the encrypt, add user and remove user button.
+     * @private
+     */
+    _initButtons() {
         this.encryptionButton = document.querySelector('.ql-encryption');
         if (this.encryptionButton != null) {
             this.encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
@@ -89,11 +97,15 @@ export class OtExtender extends Module {
         }
     }
 
+    /**
+     * Function is called after the document was received from ShareDB
+     * @param doc ShareDB document
+     */
     shareDbDocumentLoaded(doc) {
         this.shareDbDoc = doc;
         this.xmlWrapper = new XmlWrapper(this.shareDbDoc, this.useStaticKeys);
         this.xmlWrapper.on(XmlWrapper.events.REMOTE_UPDATE, this.remoteUpdate.bind(this));
-        //only if the remote doc can be loaded allow editing
+        //load the document in the xmlWrapper
         this.xmlWrapper.shareDbDocumentLoaded().then((res) => {
             window.quill.setContents(res.delta, 'api');
             this.encryptionChanged(res.isEncrypted);
@@ -103,13 +115,19 @@ export class OtExtender extends Module {
             window.quill.enable();
         });
 
-        //remote updates
+        //enable remote updates from shareDB
         this.shareDbDoc.on('op', function (op, source) {
             if (source === 'quill') return;
             this.xmlWrapper.remoteUpdate(op);
         }.bind(this));
     }
 
+    /**
+     * Event function that is called if the text content of the quill editor has been changed
+     * @param delta the change
+     * @param oldDelta the old document before the change
+     * @param source of the change (user, quill, api, etc.)
+     */
     update(delta, oldDelta, source) {
         if (source !== 'user') return;
         console.log(delta);
@@ -119,15 +137,26 @@ export class OtExtender extends Module {
         });
     }
 
+    /**
+     * Function that will be called if a remote update has been received
+     * @param op remote update operation
+     */
     remoteUpdate(op) {
         let delta = new Delta(op);
         this.quill.updateContents(delta);
     }
 
+    /**
+     * Encrypts the document
+     */
     encryptDocument() {
         this.xmlWrapper.encryptDocument();
     }
 
+    /**
+     * Event that is called after the document encryption have been changed.
+     * @param isEncrypted if the document is encrypted
+     */
     encryptionChanged(isEncrypted) {
         if (this.statusBar !== null) {
             if (isEncrypted) {
@@ -141,6 +170,10 @@ export class OtExtender extends Module {
         this.enableButtons();
     }
 
+    /**
+     * Add user handler. Receives the result of the add user dialog
+     * @param dialog dialog
+     */
     addUser(dialog) {
         if (dialog.action === AddUserDialog.ACTION.CLOSED)
             dialog.close();
@@ -152,6 +185,10 @@ export class OtExtender extends Module {
 
     }
 
+    /**
+     * Remove user handler. Receives the result of the remove user dialog
+     * @param dialog dialog
+     */
     removeUser(dialog) {
         if (dialog.action === RemoveUserDialog.ACTION.CLOSED)
             dialog.close();
@@ -162,6 +199,11 @@ export class OtExtender extends Module {
         }
     }
 
+    /**
+     * sets the status bar to the given message and color
+     * @param message of the status bar
+     * @param color of the status bar
+     */
     setStatusBarMessage(message, color) {
         if (this.statusBar !== null && this.statusBar !== undefined) {
             this.statusBar.style.backgroundColor = color;
@@ -169,12 +211,18 @@ export class OtExtender extends Module {
         }
     }
 
+    /**
+     * Disables all encryption buttons
+     */
     disableButtons() {
         this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
         this.encAddUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
         this.encDelUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
     }
 
+    /**
+     * Enables all encryption buttons based on the document setting
+     */
     enableButtons() {
         if (this.xmlWrapper.headerSection.isEncrypted === true) {
             this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
@@ -187,13 +235,17 @@ export class OtExtender extends Module {
         }
     }
 
+    /**
+     * Enum that represents the style of the encryption buttons
+     * @returns {{HIDDEN: string, VISIBLE: string}}
+     * @constructor
+     */
     static get BUTTON_STYLE() {
         return {
             HIDDEN: "display: none;",
             VISIBLE: ""
         }
     }
-
 }
 
 if (window.Quill) {

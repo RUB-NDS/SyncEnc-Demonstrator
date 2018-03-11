@@ -17,7 +17,7 @@ class XmlWrapper {
         this.xmlDoc = null;
         this.xmlDataCollection = null;
         this.headerSection = null;
-        this._MAX_BLOCK_SIZE = 10;
+        this._MAX_BLOCK_SIZE = 16;
         this.emitter = new EventEmitter();
         this.documentKey = null;
         this.keyHandler = new KeyHandler(useStaticKeys);
@@ -26,6 +26,12 @@ class XmlWrapper {
         this.otExtenderModule = window.quill.getModule("OtExtender");
     }
 
+    /**
+     * Must be called if the quill text has been changed. The function expects a quill-delta delta of the change.
+     * @param delta of the change
+     * @returns {Promise<[any , any , any , any , any , any , any , any , any , any]>} Promise which will be resolved
+     * after all operations have been executed.
+     */
     quillTextChanged(delta) {
         let myDelta = new Delta(delta);
         let offset = 0;
@@ -60,10 +66,16 @@ class XmlWrapper {
         });
     }
 
+    /**
+     * Handles remote updates from the server
+     * @param op RemoteDataBlock that contains all changes of the server
+     */
     remoteUpdate(op) {
+        //Header changes are always coming first
         if (op[0].op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
             let headerChanges = [];
             let documentChanges = [];
+            //Sort out the operations
             op.forEach(function (op) {
                 if (op.op === xmlEnc.operations.ADD_OR_REPLACE_HEADER_ELEMENT) {
                     headerChanges.push(op);
@@ -72,6 +84,7 @@ class XmlWrapper {
                 }
             });
 
+            //execute first header operations and then document changes (maybe the document key has been changed)
             this.headerSection.setHeaderElement(headerChanges);
             if (this.headerSection.isEncrypted) {
                 window.quill.disable();
@@ -89,6 +102,7 @@ class XmlWrapper {
                 });
             }
         } else {
+            //In case of waiting for private key, store all operations and execute them afterwards
             if (this.isWaitingForPrivateKey) {
                 this.storedOps.push(op);
             } else {
@@ -98,6 +112,9 @@ class XmlWrapper {
         }
     }
 
+    /**
+     * Executes the stored operations to "rebuild" the document
+     */
     executeStoredDocumentOperations() {
         for (let i = 0; i < this.storedOps.length; i++) {
             this._executeDocumentOperations(this.storedOps[i]);
@@ -106,6 +123,10 @@ class XmlWrapper {
         this.isWaitingForPrivateKey = false;
     }
 
+    /**
+     * Function to provide event listener
+     * @returns {EventEmitter} with the corresponding event
+     */
     on() {
         if (arguments[0] === XmlWrapper.events.DOCUMENT_ENCRYPTION_CHANGED) {
             this.headerSection.on(XmlHeaderSection.events.ENCRYPTION_CHANGED, arguments[1]);
@@ -115,8 +136,14 @@ class XmlWrapper {
     }
 
     /**
-     * Must be executed after shareDb has transferred the entire document to the client.
-     * The client must now convert the xml document to delta-quill.
+     * Function must be executed after shareDB has transferred the entire document to the client. This function loads then
+     * the header and checks if the document is encrypted. In case of encryption the decryption process will be executed.
+     * After the decryption is done the method will return a object containing the entire document as a quill-delta format
+     * and a boolean value isEncrypted which shows if the document is encrypted or not.
+     * ({delte: xxx, isEncrypted: true/false})
+     * @returns {Promise<[any , any , any , any , any , any , any , any , any , any]>} Promise that returns an object
+     * containing the delta with all formatting and a boolean that shows if the document is encrypted or not. {delta: aa,
+     * isEncrypted: false}
      */
     shareDbDocumentLoaded() {
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
@@ -152,9 +179,13 @@ class XmlWrapper {
         }
     }
 
+    /**
+     * Encrypts the document. First a new document key will be created and the document key will be encrypted
+     * by the corresponding user's public key. Also the header section will be updated. Afterwards, all data, including
+     * the encrypted document and the header section, will be send to the server.
+     * @returns {PromiseLike<CryptoKey>}
+     */
     encryptDocument() {
-        // if (this.headerSection.isEncrypted)
-        //     return;
         return this.headerSection.createDocumentKey().then((docKey) => {
             this.documentKey = docKey;
             return this.keyHandler.loadPublicKey().then((pubKey) => {
@@ -185,6 +216,10 @@ class XmlWrapper {
         });
     }
 
+    /**
+     * Adds a new user to the document and generates a new document key. An existing user will be ignored.
+     * @param user name of the user that shall be added to the document.
+     */
     addUserToDocument(user) {
         //Get all current users of the document to generate a new document key (user cannot decrypt older versions)
         let userList = this.headerSection.getUserList();
@@ -196,6 +231,10 @@ class XmlWrapper {
 
     }
 
+    /**
+     * Removes a user from the document and generates a new document key. A Non existing user will be ignored.
+     * @param user name of the user that shall be removed from the document.
+     */
     removeUserFromDocument(user) {
         let userList = this.headerSection.getUserList();
         if (HelperClass.searchStringInArray(userList, user) === true) {
@@ -207,6 +246,14 @@ class XmlWrapper {
         }
     }
 
+    /**
+     * Function generates a new document key and adds or removes the corresponding user from the document. The function
+     * will collect all existing users of the current document and will encrypt the new document key with every user's
+     * public key.
+     * @param userList of users that have access to the document. Existing users will be updated and new users will be
+     * created.
+     * @private
+     */
     _handleAddOrRemoveUserToDocument(userList){
         this.keyHandler.getPublicKeysByUsers(userList).then((resultArray) => {
             this.headerSection.createDocumentKey().then((docKey) => {
@@ -232,13 +279,21 @@ class XmlWrapper {
         });
     }
 
+    /**
+     * Executes the remote document operations. The function decrypts the content of the remote block and
+     * inserts the changes into the quill document
+     * @param op document operations that shall be executed
+     * @private
+     */
     _executeDocumentOperations(op) {
         let resultDeltaPromises = [];
+        //init the block - required for decryption
         op.forEach(function (op) {
             let remoteDataBlock = new RemoteDataBlock(op, this.documentKey);
             resultDeltaPromises.push(remoteDataBlock.initRemoteData());
         }.bind(this));
 
+        //after init of all block create a delta for quill
         Promise.all(resultDeltaPromises).then((remoteDataBlocks) => {
             let resultDelta = new Delta();
             for (let i = 0; i < remoteDataBlocks.length; i++) {
@@ -256,12 +311,17 @@ class XmlWrapper {
             }
             return resultDelta;
         }).then((resultDelta) => {
+            //after
             this.emitter.emit(XmlWrapper.events.REMOTE_UPDATE, resultDelta);
-            console.log("DATA:" + this.doc.data);
-            console.log("XMLD" + xmlSerializer.serializeToString(this.xmlDoc));
         });
     }
 
+    /**
+     * Replaces all blocks of the document. That is required if the document encryption changes. All blocks musst be
+     * replaced and this function returns a list of all blocks.
+     * @returns {Array} all blocks of the document
+     * @private
+     */
     _replaceAllBlocks() {
         let xmlRemoteDataBlocks = [];
         for (let i = 0; i < this.xmlDataCollection.dataBlockList.length; i++) {
@@ -317,7 +377,7 @@ class XmlWrapper {
     }
 
     /**
-     * Inserts the input into the xml document
+     * Inserts the input from quill into the xml document
      * @param input text that shall be inserted into the xml document
      * @param offset the offset of the position based document. Determines the insertion position of the first character
      * @returns {Array} returns an operation array that has to be submitted to the doc.submitOp function
@@ -356,6 +416,18 @@ class XmlWrapper {
         }
     }
 
+    /**
+     * Generates blocks that will be inserted into the xml document. The inserted text must have the same attributes
+     * (formatting).
+     * @param input text input that shall be inserted into the xml document
+     * @param offset starting position of the insertion (position based)
+     * @param xmlDataBlockOffset the block offset all the blocks until the start of xmlDataBlock
+     * @param xmlDataBlock the block which contains the offset position
+     * @param xmlDataBlockPos position of the block within the xml document
+     * @param isNewBlock if the block has been created (were non existing before)
+     * @returns {Array} returns an array with operations for doc.submitOp
+     * @private
+     */
     _insertTextWithSameAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock, xmlDataBlockPos, isNewBlock) {
         let textPos = offset - xmlDataBlockOffset; //position within the block
         let newText = xmlDataBlock.text.slice(0, textPos); //keep the first characters
@@ -371,6 +443,18 @@ class XmlWrapper {
         return result;
     }
 
+    /**
+     * Generates blocks that will be inserted into the xml document. The inserting text has not the same formatting
+     * (attributes)
+     * @param input text input that shall be inserted into the xml document
+     * @param offset starting position of the insertion (position based)
+     * @param xmlDataBlockOffset the block offset all the blocks until the start of xmlDataBlock
+     * @param xmlDataBlock the block which contains the offset position
+     * @param xmlDataBlockPos position of the block within the xml document
+     * @param isNewBlock if the block has been created (were non existing before)
+     * @returns {Array} returns an array with operations for doc.submitOp
+     * @private
+     */
     _insertTextWithDifferentAttributes(input, offset, xmlDataBlockOffset, xmlDataBlock, xmlDataBlockPos, isNewBlock) {
         let textPos = offset - xmlDataBlockOffset; //position within the block
         let result = [];
@@ -396,10 +480,17 @@ class XmlWrapper {
         return result;
     }
 
+    /**
+     * Changes the attributes of the given delta
+     * @param delta quill delta change for changing the attribute field
+     * @param offset the offset of the change
+     * @returns {Array} result of the changes for the doc.submitOps function
+     * @private
+     */
     _attributeChange(delta, offset) {
         let xmlDataBlockPos = this.xmlDataCollection.getXmlDataBlockPositionByTextOffset(offset);
         let xmlDataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(xmlDataBlockPos);
-        let count = delta.retain;
+        let count = delta.retain; // how may characters are effected
         let xmlDataBlockList = this.xmlDataCollection.getXmlDataBlockListByOffsetAndLength(offset, count);
         let cursorPos = offset - xmlDataBlockOffset;
         let resultRemoteDataBlock = [];
@@ -407,12 +498,19 @@ class XmlWrapper {
         let tmpRemoteDataBlock = null;
         let countBlocks = xmlDataBlockPos;
         //if there is unchanged data within the first block (0 to cursorPos).
-        if (text.length != 0) {
+        if (text.length !== 0 && xmlDataBlockList[0].text.length !== cursorPos) {
             //clone the block and put it in a new Block, change the text
             tmpRemoteDataBlock = new RemoteDataBlock(xmlDataBlockPos, 'r', xmlDataBlockList[0].clone());
             tmpRemoteDataBlock.text = text;
             resultRemoteDataBlock.push(tmpRemoteDataBlock);
             countBlocks++;
+        }
+
+        //In case that the cursorPos points at the end of the block (nothing can be changed)
+        if(xmlDataBlockList[0].text.length === cursorPos){
+            countBlocks++;
+            xmlDataBlockList.splice(0,1);
+            cursorPos = 0;
         }
 
         for (let index in xmlDataBlockList) {
@@ -449,7 +547,7 @@ class XmlWrapper {
 
         //set remote operations, first replacements
         let countReplacements = (resultRemoteDataBlock.length < xmlDataBlockList.length ?
-            resultRemoteDataBlock.length : xmlDataBlockList.length)
+            resultRemoteDataBlock.length : xmlDataBlockList.length);
         for (let j = 0; j < countReplacements; j++)
             resultRemoteDataBlock[j].op = 'r';
 
@@ -473,8 +571,9 @@ class XmlWrapper {
      * @param firstBlockPos the position of the block within the xml document
      * @param textPos position of the cursor within the text
      * @param attributes (formatting) of the current text
-     * @param isNewBlock if this block is a new one and must be added instead of replaced
-     * @returns {Array} returns an array of split blocks
+     * @param isNewBlock if this block is a new one than it must be added to the document. If the
+     * block already existed than it must be replaced
+     * @returns {Array} returns an array of remoteDataBlocks for the doc.submitOps function
      * @private
      */
     _splitBlock(text, firstBlockPos, textPos, attributes, isNewBlock) {
@@ -511,12 +610,13 @@ class XmlWrapper {
 
     /**
      * function tries to merge data to the previous block or splits it into two blocks
-     * @param text text that should be split
+     * @param text text that should be merged
      * @param firstBlockPos the position of the block within the xml document
      * @param textPos position of the cursor within the text
      * @param attributes (formatting) of the current text
      * @param result result array of the remote change operations
-     * @param isNewBlock if this block is a new one and must be added instead of replaced
+     * @param isNewBlock if this block is a new one than it must be added to the document. If the
+     * block already existed than it must be replaced
      * @private
      */
     _handleSpiltBlockWithMerge(text, firstBlockPos, textPos, attributes, result, isNewBlock) {
@@ -552,7 +652,7 @@ class XmlWrapper {
     }
 
     /**
-     * Compares the attributes with the given block. If the attributes are matching, the function returns the block,
+     * Compares the attributes field with the given block. If the attributes are matching, the function returns the block,
      * else null.
      * @param block that shall be compared to the attributes list
      * @param attributes that shall be checked
@@ -572,6 +672,13 @@ class XmlWrapper {
         return block;
     }
 
+    /**
+     *
+     * @param ops converts the remote block operations to JSON for submission (doc.sumbitOps function)
+     * @returns {Promise<[any , any , any , any , any , any , any , any , any , any]>} promise array since the plaintext
+     * must be encrypted first
+     * @private
+     */
     _convertToShareDbOperation(ops) {
 
         let resultPromise = [];
@@ -587,6 +694,12 @@ class XmlWrapper {
         });
     }
 
+    /**
+     * Converts the remoteDataBlock (insert) into the delta format
+     * @param remoteDataBlock remote block that shall be converted to an delta format
+     * @returns {*} delta of the insertion
+     * @private
+     */
     _insertTextInQuill(remoteDataBlock) {
         let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
         let attributes = remoteDataBlock.xmlDataBlock.getAttributes();
@@ -599,6 +712,12 @@ class XmlWrapper {
         return delta;
     }
 
+    /**
+     * converts the remoteDataBlock (delete) into the delta format
+     * @param remoteDataBlock remote block that shall be converted to an delta format
+     * @returns {*} delta of the deletion
+     * @private
+     */
     _deleteTextInQuill(remoteDataBlock) {
         let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
         let localDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(remoteDataBlock.pos);
@@ -607,6 +726,12 @@ class XmlWrapper {
         return delta;
     }
 
+    /**
+     * converts the remoteDataBlock (replace) into the delta format
+     * @param remoteDataBlock remote block that shall be converted to an delta format
+     * @returns {*} delta of the replacement
+     * @private
+     */
     _replaceTextInQuill(remoteDataBlock) {
         let dataBlockOffset = this.xmlDataCollection.getXmlDataBlockOffsetByPos(remoteDataBlock.pos);
         let localDataBlock = this.xmlDataCollection.getXmlDataBlockByBlockPosition(remoteDataBlock.pos);
@@ -624,6 +749,14 @@ class XmlWrapper {
         return delta;
     }
 
+    /**
+     * Creates a new remoteDeltaBlock with the given text, position and attributes.
+     * @param text of the remoteDataBlock
+     * @param pos position of the remoteDataBlock within the xml document
+     * @param attributes of the remoteDataBlock (formatting)
+     * @returns {RemoteDataBlock} a new RemoteDataBlock
+     * @private
+     */
     _createRemoteDataBlock(text, pos, attributes) {
         let xmlDataBlock = new XmlDataBlock(null, this.documentKey);
         xmlDataBlock.init();
@@ -633,16 +766,28 @@ class XmlWrapper {
         return xmlRemoteDataBlock;
     }
 
+    /**
+     * @returns {number} maximum length of any data block within the xml document
+     * @constructor
+     */
     get MAX_BLOCK_SIZE() {
         return this._MAX_BLOCK_SIZE;
     }
 
+    /**
+     * @returns {Delta} entire text of the document containing all formatting as delta. The result can be
+     * inserted into quill
+     */
     get documentTextWithFormatting() {
         return this.xmlDataCollection.textContentWithFormattingDelta;
     }
 
 }
 
+/**
+ * Events of the XMLWrapper
+ * @type {{REMOTE_UPDATE: string, TEXT_RELOAD: string, DOCUMENT_LOADED: string, DOCUMENT_ENCRYPTION_CHANGED: string}}
+ */
 XmlWrapper.events = {
     REMOTE_UPDATE: 'remote-update',
     TEXT_RELOAD: 'text-reload',

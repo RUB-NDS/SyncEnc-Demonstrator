@@ -13,6 +13,10 @@ export default class XmlBlock {
         this.xmlElement = null;
     }
 
+    /**
+     * Initializes the XMLBlock (decryption) and returns a Promise.
+     * @returns {Promise<any>}
+     */
     init() {
         return new Promise(
             function (resolve, reject) {
@@ -48,6 +52,10 @@ export default class XmlBlock {
         )
     }
 
+    /**
+     * Decrypts the current block
+     * @private
+     */
     _decryptElement() {
         let blockElement = CryptoHelper.getBlockForDecryption(this.xmlElement);
 
@@ -65,6 +73,10 @@ export default class XmlBlock {
         }.bind(this));
     }
 
+    /**
+     * Encrypts the current block
+     * @private
+     */
     _encryptElement() {
         let blockElement = CryptoHelper.getBlockForDecryption(this.xmlElement);
         this._encodeAllElementsForEncryption(blockElement.childNodes[0].childNodes[0]);
@@ -82,40 +94,70 @@ export default class XmlBlock {
         });
     }
 
+    /**
+     * Encodes the text of the block before the encryption will be processed
+     * @param block that shall be encoded
+     * @private
+     */
     _encodeAllElementsForEncryption(block){
         for(let i = 0; i < block.childNodes.length; i++){
             block.childNodes[i].textContent = encodeURI(block.childNodes[i].textContent);
         }
     }
 
+    /**
+     * Decodes the text of the block
+     * @param block
+     * @private
+     */
     _decodeAllElementsForDecryption(block){
         for(let i = 0; i < block.childNodes.length; i++){
             block.childNodes[i].textContent = decodeURI(block.childNodes[i].textContent);
         }
     }
 
+    /**
+     * @returns {boolean} true if block is encrypted
+     */
     get isEncrypted() {
         if (this.documentKey !== null)
             return true;
         return false;
     }
 
+    /**
+     * @returns {number} length of the block's text
+     */
     get length() {
         return this.text.length;
     }
 
+    /**
+     * @returns {*} text of the block
+     */
     get text() {
         return this.xmlElement.getElementsByTagName('data').item(0).textContent;
     }
 
+    /**
+     * Sets text of the block
+     * @param data text of the block
+     */
     set text(data) {
         this.xmlElement.getElementsByTagName('data').item(0).textContent = data;
     }
 
+    /**
+     * @returns {null|*} the xml element as an object
+     */
     get element() {
         return this.xmlElement;
     }
 
+    /**
+     * Sets the attribute of the block (e.g. italic, bold, etc.)
+     * @param input attribute list as json format (quill-delta's attribute field)
+     */
     setAttributes(input) {
         if (input === null || Object.keys(input).length == 0) return;
         let attributeElement = this.xmlElement.getElementsByTagName('attributes').item(0);
@@ -151,6 +193,9 @@ export default class XmlBlock {
         }
     }
 
+    /**
+     * @returns {*} the attribute list from the block as json format (quill-delta's attribute field)
+     */
     getAttributes() {
         let attributesElement = this.xmlElement.getElementsByTagName('attributes').item(0);
         if (attributesElement)
@@ -159,6 +204,11 @@ export default class XmlBlock {
             return null;
     }
 
+    /**
+     * Compares the given attribute list with the block's attribute list
+     * @param attributeList that shall be compared with the block's attribute list
+     * @returns {boolean} true if attribute lists are matching
+     */
     compareAttributes(attributeList) {
         let attributes = this.getAttributes();
         if (Object.keys(attributeList).length === 0 && attributes === null)
@@ -178,6 +228,10 @@ export default class XmlBlock {
         return true;
     }
 
+    /**
+     * Clones the block
+     * @returns {XmlBlock} a new XmlBlock (deep copy)
+     */
     clone() {
         let resultDataBlock = new XmlBlock(null, this.documentKey);
         resultDataBlock.init();
@@ -186,6 +240,9 @@ export default class XmlBlock {
         return resultDataBlock;
     }
 
+    /**
+     * @returns {Promise<any>} a promise that serializes the current block.
+     */
     toString() {
         if (this.isEncrypted)
             return this._encryptElement().then((encrypted) => {
@@ -197,6 +254,11 @@ export default class XmlBlock {
             });
     }
 
+    /**
+     * Creates a new empty xml element
+     * @returns {HTMLElement} new xml element
+     * @private
+     */
     _createEmptyBlockElement() {
         var blockElement = xmlDoc.createElement('block');
         var dataElement = xmlDoc.createElement('data');
@@ -207,12 +269,11 @@ export default class XmlBlock {
         return blockElement;
     }
 
+    /**
+     * Sets the document key of the block. The key is required for encrypting the block's data
+     * @param value document key for block encryption
+     */
     setDocumentKey(value){
         this.documentKey = value;
     }
-
-    deleteDocumentKey(){
-        this.documentKey = null;
-    }
-
 }
