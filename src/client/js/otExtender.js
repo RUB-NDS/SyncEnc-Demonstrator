@@ -8,7 +8,7 @@ import RemoveUserDialog from "./controls/removeUserDialog";
 
 //register shareDB type for xml encryption
 shareDb.types.register(xmlEnc.type);
-var socket = new WebSocket('ws://' + window.location.host); //new socket
+var socket = new WebSocket('wss://' + window.location.host); //new socket
 var connection = new shareDb.Connection(socket); //new connection
 
 window.disconnect = function () {
@@ -16,12 +16,17 @@ window.disconnect = function () {
 };
 
 window.connect = function () {
-    var socket = new WebSocket('ws://' + window.location.host);
+    var socket = new WebSocket('wss://' + window.location.host);
     connection.bindToSocket(socket);
 };
 
-//connect to the server
-var doc = connection.get('test', 'xml-enc');
+//allow different documents
+let documentName = "test";
+if(document.URL.indexOf('#') > 1){
+    documentName = document.URL.substring(document.URL.indexOf('#') + 1, document.URL.length);
+}
+
+var doc = connection.get(documentName, 'xml-enc');
 
 //subscribe the document
 new Promise((resolve, reject) => {

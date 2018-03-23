@@ -14,10 +14,15 @@ var WebSocketJSONStream = require('websocket-json-stream');
 var ShareDB = require('sharedb');
 var xmlEnc = require('xml-enc');
 var http = require('http');
-
+var https = require('https');
+var fs = require('fs');
 ShareDB.types.register(xmlEnc.type);
-console.log('xmlEnc name: ' + xmlEnc.type.name + ' uri: ' + xmlEnc.type.uri);
 var backend = new ShareDB();
+
+const httpsOptions = {
+  key: fs.readFileSync('privkey.pem'),
+  cert: fs.readFileSync('cert.pem')
+};
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -34,7 +39,7 @@ app.use(webpackDevMiddleware(compiler, {
 app.use(express.static('static'));
 app.use(express.static('src/client/views'));
 
-var server = http.createServer(app);
+var server = https.createServer(httpsOptions, app);
 var wss = new WebSocket.Server({server: server});
 wss.on('connection', function (ws, req) {
     ws.on('error', console.error);
@@ -42,12 +47,5 @@ wss.on('connection', function (ws, req) {
     backend.listen(stream);
 });
 
-server.listen(3000);
-console.log("Listing on http://localhost:3000");
-
-var connection = backend.connect();
-var doc = connection.get('test', 'xml-enc');
-
-doc.fetch(function (err) {
-    if (err) throw err;
-});
+server.listen(8080);
+console.log("Listing on https://localhost:8080");
