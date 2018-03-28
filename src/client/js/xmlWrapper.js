@@ -42,7 +42,6 @@ class XmlWrapper {
                 tmpOp = this._deleteText(op.delete, offset);
                 this.xmlDataCollection.submitOp(tmpOp);
                 opPromises.push(this._convertToShareDbOperation(tmpOp));
-                offset -= op.delete;
             } else if (typeof op.retain === 'number') {
                 if (op.attributes) {
                     tmpOp = this._attributeChange(op, offset);
