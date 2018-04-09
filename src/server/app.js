@@ -13,15 +13,14 @@ var WebSocket = require('ws');
 var WebSocketJSONStream = require('websocket-json-stream');
 var ShareDB = require('sharedb');
 var xmlEnc = require('xml-enc');
-var http = require('http');
 var https = require('https');
 var fs = require('fs');
 ShareDB.types.register(xmlEnc.type);
 var backend = new ShareDB();
 
 const httpsOptions = {
-  key: fs.readFileSync('privkey.pem'),
-  cert: fs.readFileSync('cert.pem')
+    key: fs.readFileSync('privkey.pem'),
+    cert: fs.readFileSync('cert.pem')
 };
 
 // uncomment after placing your favicon in /public

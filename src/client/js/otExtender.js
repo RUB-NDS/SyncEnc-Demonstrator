@@ -22,11 +22,25 @@ window.connect = function () {
 
 //allow different documents
 let documentName = "test";
-if(document.URL.indexOf('#') > 1){
+if (document.URL.indexOf('#') > 1) {
     documentName = document.URL.substring(document.URL.indexOf('#') + 1, document.URL.length);
 }
 
 var doc = connection.get(documentName, 'xml-enc');
+
+connection.on('error', function (data) {
+    window.quill.disable();
+    doc.fetch(function (err) {
+        let otExtender = window.quill.getModule('OtExtender');
+        if (err) {
+            otExtender.setStatusBarMessage(err, "red");
+            throw err;
+
+        } else {
+            otExtender.shareDbDocumentLoaded(doc);
+        }
+    })
+});
 
 //subscribe the document
 new Promise((resolve, reject) => {

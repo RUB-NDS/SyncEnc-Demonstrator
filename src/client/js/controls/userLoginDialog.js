@@ -1,12 +1,12 @@
 import inputUserDialog from "./inputUserDialog";
 
-export default class UserLoginDialog extends inputUserDialog{
-    constructor(){
+export default class UserLoginDialog extends inputUserDialog {
+    constructor() {
         super("login");
         this.request = UserLoginDialog.REQUEST.NONE;
     }
 
-    showModal(request){
+    showModal(request) {
         this.request = request;
         super.showModal();
     }
@@ -16,7 +16,7 @@ export default class UserLoginDialog extends inputUserDialog{
      * @returns {string} html string
      * @private
      */
-    _htmlDialogString(){
+    _htmlDialogString() {
         return '<div class="ql-dialog-login">' +
             '    <dialog role="dialog" id="dialog-login">' +
             '        <form>' +
@@ -31,11 +31,11 @@ export default class UserLoginDialog extends inputUserDialog{
             '</div>'
     }
 
-    get username(){
+    get username() {
         return this.dialog.getElementsByTagName("input")[0].value;
     }
 
-    get password(){
+    get password() {
         return this.dialog.getElementsByTagName("input")[1].value;
     }
 }

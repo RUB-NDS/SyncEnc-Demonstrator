@@ -61,7 +61,23 @@ class XmlWrapper {
             for (let i = 0; i < opsPromises.length; i++) {
                 Array.prototype.push.apply(ops, opsPromises[i]);
             }
-            this.doc.submitOp(ops, {source: "quill"});
+            //try to submit the Operations, in case anything goes wrong request the current document state from the
+            // server
+            try {
+                this.doc.submitOp(ops, {source: "quill"});
+            } catch (e) {
+                //disable quill before requesting the current state
+                window.quill.disable();
+                this.doc.fetch(function (err) {
+                    let otExtender = window.quill.getModule('OtExtender');
+                    if (err) {
+                        otExtender.setStatusBarMessage(err, "red");
+                        throw err;
+                    } else {
+                        otExtender.shareDbDocumentLoaded(this.doc);
+                    }
+                });
+            }
         });
     }
 
@@ -135,14 +151,14 @@ class XmlWrapper {
     }
 
     /**
-     * Function must be executed after shareDB has transferred the entire document to the client. This function loads then
-     * the header and checks if the document is encrypted. In case of encryption the decryption process will be executed.
-     * After the decryption is done the method will return a object containing the entire document as a quill-delta format
-     * and a boolean value isEncrypted which shows if the document is encrypted or not.
+     * Function must be executed after shareDB has transferred the entire document to the client. This function loads
+     * then the header and checks if the document is encrypted. In case of encryption the decryption process will be
+     * executed. After the decryption is done the method will return a object containing the entire document as a
+     * quill-delta format and a boolean value isEncrypted which shows if the document is encrypted or not.
      * ({delte: xxx, isEncrypted: true/false})
      * @returns {Promise<[any , any , any , any , any , any , any , any , any , any]>} Promise that returns an object
-     * containing the delta with all formatting and a boolean that shows if the document is encrypted or not. {delta: aa,
-     * isEncrypted: false}
+     * containing the delta with all formatting and a boolean that shows if the document is encrypted or not. {delta:
+     *     aa, isEncrypted: false}
      */
     shareDbDocumentLoaded() {
         this.xmlDoc = xmlParser.parseFromString(this.doc.data, 'application/xml');
@@ -237,7 +253,7 @@ class XmlWrapper {
     removeUserFromDocument(user) {
         let userList = this.headerSection.getUserList();
         if (HelperClass.searchStringInArray(userList, user) === true) {
-            if(userList.indexOf(user) !== -1){
+            if (userList.indexOf(user) !== -1) {
                 userList.splice(userList.indexOf(user), 1);
                 this.headerSection.removeUser(user);
             }
@@ -253,7 +269,7 @@ class XmlWrapper {
      * created.
      * @private
      */
-    _handleAddOrRemoveUserToDocument(userList){
+    _handleAddOrRemoveUserToDocument(userList) {
         this.keyHandler.getPublicKeysByUsers(userList).then((resultArray) => {
             this.headerSection.createDocumentKey().then((docKey) => {
                 this.documentKey = docKey;
@@ -506,9 +522,9 @@ class XmlWrapper {
         }
 
         //In case that the cursorPos points at the end of the block (nothing can be changed)
-        if(xmlDataBlockList[0].text.length === cursorPos){
+        if (xmlDataBlockList[0].text.length === cursorPos) {
             countBlocks++;
-            xmlDataBlockList.splice(0,1);
+            xmlDataBlockList.splice(0, 1);
             cursorPos = 0;
         }
 
@@ -651,8 +667,8 @@ class XmlWrapper {
     }
 
     /**
-     * Compares the attributes field with the given block. If the attributes are matching, the function returns the block,
-     * else null.
+     * Compares the attributes field with the given block. If the attributes are matching, the function returns the
+     * block, else null.
      * @param block that shall be compared to the attributes list
      * @param attributes that shall be checked
      * @returns {*} the block if the attributes are matching or null
