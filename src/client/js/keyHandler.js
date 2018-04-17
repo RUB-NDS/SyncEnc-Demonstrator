@@ -189,7 +189,7 @@ export default class KeyHandler {
      * @private
      */
     _resultMessage() {
-        console.log("received msg: " + event.data);
+        //console.log("received msg: " + event.data);
         //handle private key data
         if (event.data.data === 'privKey') {
             this.isPrivateKeyRequested = false;

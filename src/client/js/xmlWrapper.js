@@ -224,7 +224,7 @@ class XmlWrapper {
                             Array.prototype.push.apply(ops, opArray[i]);
                         }
                         this.doc.submitOp(ops, {source: "quill"});
-                        console.log(this.doc.data);
+                        //console.log(this.doc.data);
                     });
                 });
             });
@@ -286,8 +286,8 @@ class XmlWrapper {
                             Array.prototype.push.apply(ops, opArray[i]);
                         }
                         this.doc.submitOp(ops, {source: "quill"});
-                        console.log(this.doc.data);
-                        console.log(this.headerSection.getUserList());
+                        //console.log(this.doc.data);
+                        //console.log(this.headerSection.getUserList());
                     });
                 });
             });
@@ -509,7 +509,9 @@ class XmlWrapper {
         let xmlDataBlockList = this.xmlDataCollection.getXmlDataBlockListByOffsetAndLength(offset, count);
         let cursorPos = offset - xmlDataBlockOffset;
         let resultRemoteDataBlock = [];
-        let text = xmlDataBlockList[0].text.substr(0, cursorPos);
+        let text = "";
+        if(xmlDataBlockList[0].text !== undefined)
+            text = xmlDataBlockList[0].text.substr(0, cursorPos);
         let tmpRemoteDataBlock = null;
         let countBlocks = xmlDataBlockPos;
         //if there is unchanged data within the first block (0 to cursorPos).

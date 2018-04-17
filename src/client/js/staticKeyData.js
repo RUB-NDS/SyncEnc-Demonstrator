@@ -1,4 +1,6 @@
 export default class staticKeyData{
+    constructor(){}
+
     static get publicKeyString() {
         return "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmpQ0WsT98wCgVmIRllJOETagmx6gqPen" +
             "/QOGLaeiVxIsUohk07ZGswPCza6HBFv63umswrs5j7IK5NQ2xe8sKDS3/qQazsf7lSe/xc4ooWk7" +

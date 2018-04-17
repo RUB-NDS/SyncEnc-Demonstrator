@@ -278,7 +278,7 @@ class XmlHeaderSection {
             encParams.setSymmetricKey(key);
             encParams.setStaticIV(false);
             encParams.setReferences(references);
-            console.log(xmlSerializer.serializeToString(keyElement));
+            //console.log(xmlSerializer.serializeToString(keyElement));
             return encryptedXML.encrypt(keyElement, encParams.getEncryptionInfo()).then((result) => {
                 return result;
             });
