@@ -31,9 +31,3 @@ start project
 
     npm start
    go to http://localhost:8080
-## Run Tests
-Follow the steps of "Run application"
-start test server
-
-    npm run startTestServer
-go to http://localhost:8080 to run the tests
