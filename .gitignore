@@ -4,3 +4,5 @@ routes/
 /package-lock.json
 node_modules/
 *.iml
+cert.pem
+privkey.pem
