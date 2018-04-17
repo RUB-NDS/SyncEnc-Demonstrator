@@ -1,13 +1,10 @@
 {
   "name": "quillwithencryptionnodejs",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "mocha --compilers js:babel-core/register src/test/test.js",
     "start": "node ./src/server/app.js",
-    "startTestServer": "node ./src/server/testApp.js",
-    "build": "webpack",
-    "buildTest": "webpack --config webpack.test.config.js"
+    "build": "webpack"
   },
   "repository": {
     "type": "git",
