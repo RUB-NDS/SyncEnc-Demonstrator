@@ -237,7 +237,7 @@ class XmlHeaderSection {
             for (let i = 0; i < users.length; i++) {
                 result.push(users[i].textContent);
             }
-            console.log(result);
+            //console.log(result);
             return result;
         }
     }

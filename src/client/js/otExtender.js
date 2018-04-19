@@ -195,7 +195,6 @@ export class OtExtender extends Module {
         if (dialog.action === AddUserDialog.ACTION.CLOSED)
             dialog.close();
         if (dialog.action === AddUserDialog.ACTION.SAVED) {
-            console.log(dialog.value);
             this.xmlWrapper.addUserToDocument(dialog.value);
             dialog.close();
         }
@@ -210,7 +209,6 @@ export class OtExtender extends Module {
         if (dialog.action === RemoveUserDialog.ACTION.CLOSED)
             dialog.close();
         if (dialog.action === RemoveUserDialog.ACTION.SAVED) {
-            console.log(dialog.value);
             this.xmlWrapper.removeUserFromDocument(dialog.value);
             dialog.close();
         }

@@ -35,7 +35,6 @@ export default class inputUserDialog{
         }));
         window.document.body.insertAdjacentElement('afterbegin', divElement);
         this.dialog = divElement;
-        console.log(this.dialog);
     }
 
     /**
