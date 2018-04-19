@@ -69,7 +69,7 @@ export default class XmlBlock {
             if (this.xmlElement.parentElement != null)
                 this.xmlElement.parentElement.replaceChild(newChild, this.xmlElement);
             this.xmlElement = newChild;
-            console.log(newChild)
+            //console.log(newChild)
         }.bind(this));
     }
 

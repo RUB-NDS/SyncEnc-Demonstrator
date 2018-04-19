@@ -72,7 +72,7 @@ class XmlHeaderSection {
         let block = HelperClass.getBlockForDecryption(user.getElementsByTagName('key')[0]);
         let encryptedXML = new EncryptedXML();
         return encryptedXML.decrypt(block, privateKey).then((decryptedKeyElement) => {
-            console.log(decryptedKeyElement.childNodes[0].textContent);
+            //console.log(decryptedKeyElement.childNodes[0].textContent);
             let keyArray = window.Helper.base64ToArrayBuffer(decryptedKeyElement.childNodes[0].textContent);
             return window.crypto.subtle.importKey("raw", keyArray, {
                 name: "AES-GCM"
