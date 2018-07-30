@@ -17,17 +17,18 @@
   ],
   "author": "Dominik Preikschat",
   "dependencies": {
-    "body-parser": "~1.18.2",
+    "body-parser": "^1.18.3",
     "cookie-parser": "~1.4.3",
     "debug": "~2.6.9",
-    "eventemitter3": "^3.0.0",
+    "eventemitter3": "^3.1.0",
     "express": "~4.15.5",
     "http": "0.0.0",
     "morgan": "~1.9.0",
+    "npm": "^6.2.0",
     "quill": "^1.3.3",
     "quill-delta": "^3.6.2",
     "serve-favicon": "~2.4.5",
-    "sharedb": "^1.0.0-beta.7",
+    "sharedb": "^1.0.0-beta.9",
     "websocket-json-stream": "0.0.3",
     "ws": "^3.3.2",
     "xml-enc": "file:../ottype-xml-enc",
@@ -36,8 +37,8 @@
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.2",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
     "babel-plugin-transform-class-properties": "^6.24.1",
     "babel-preset-es2015": "^6.24.1",
     "babel-register": "^6.26.0",
@@ -46,7 +47,7 @@
     "css-loader": "^0.28.8",
     "mocha": "^4.0.1",
     "style-loader": "^0.19.1",
-    "webpack": "^3.8.1",
+    "webpack": "^3.12.0",
     "webpack-dev-middleware": "^1.12.0"
   }
 }
