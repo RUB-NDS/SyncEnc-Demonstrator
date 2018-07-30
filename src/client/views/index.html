@@ -10,15 +10,15 @@
     <link href="css/otExtender.css" rel="stylesheet">
     <script src="js/quill.js"></script>
     <script src="otExtender.bundle.js"></script>
-    <title>Quill - Test</title>
+    <title>SyncEnc - Demonstrator</title>
 </head>
 <body>
-<h1>Quill Editor</h1>
+<div><img src="img/syncenc-logo.png" />
+<h2>Synchrones Arbeiten auf verschlüsselten Dokumenten</h2></div>
 <iframe id="postMessageIframe" title="KMS Communicator" src="https://neon.cloud.nds.rub.de/integratedIndex.html"
         style="width:0;height:0;border:0; border:none;">
     <p>Your browser does not support iframes.</p>
 </iframe>
-<div id="myDiv"></div>
 <div id="toolbar">
     <select class="ql-size">
         <option value="small"></option>
@@ -30,9 +30,6 @@
     <button class="ql-bold"></button>
     <button class="ql-italic"></button>
     <button class="ql-underline"></button>
-    <button class="ql-encryption fas fa-lock"></button>
-    <button class="ql-encAddUser fas fa-user-plus"></button>
-    <button class="ql-encDelUser fas fa-user-minus"></button>
     <select class="ql-color">
         <option value="red">Red</option>
         <option value="#00f">Blue</option>
@@ -40,6 +37,9 @@
         <option value="green">Green</option>
         <option value="black">Black</option>
     </select>
+    <button class="ql-encryption fas fa-lock"></button>
+    <button class="ql-encAddUser fas fa-user-plus"></button>
+    <button class="ql-encDelUser fas fa-user-minus"></button>
 </div>
 <div id="editor"></div>
 <div id="statusBar"></div>
@@ -58,5 +58,6 @@
         }
     });
 </script>
+<div class="footer"><a href="http://bmbf.de"><img src="http://www.syncenc.de/wp-content/uploads/2016/11/BMBF_RGB_Gef_M.jpg" alt="BMBF"></a><a href="http://www.uni-saarland.de/lehrstuhl/borges"><img src="http://www.syncenc.de/wp-content/uploads/2016/11/UdS-Logo-300x131-1-e1479212699744.png" alt="SAAR"></a><a href="https://www.nds.rub.de"><img src="http://www.syncenc.de/wp-content/uploads/2016/11/ruhr-universitat-bochum-LOGO-300x150-1-e1479212712209.jpg" alt="RUB"></a><a href="https://www.ecsec.de"><img src="http://www.syncenc.de/wp-content/uploads/2016/09/ecsec-logo_100px.png" style="width:120px;" alt="ECSEC"></a></div>
 </body>
 </html>
