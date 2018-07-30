@@ -1,13 +1,10 @@
 .ql-encryption:before {
-    content: "E";
 }
 
 .ql-encAddUser:before{
-    content: "+";
 }
 
 .ql-encDelUser:before{
-    content: "-";
 }
 
 #statusBar {
