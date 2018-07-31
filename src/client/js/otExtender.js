@@ -55,6 +55,7 @@ new Promise((resolve, reject) => {
     //if the document has been loaded successfully
     if (doc.data === undefined)
         doc.create('<root><header><isEncrypted>false</isEncrypted></header><document></document></root>', 'xml-enc');
+    while(window.quill === undefined) {}
     let otExtender = window.quill.getModule('OtExtender');
     otExtender.shareDbDocumentLoaded(doc);
 });
