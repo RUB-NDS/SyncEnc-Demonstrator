@@ -90,29 +90,34 @@ export class OtExtender extends Module {
         this.encryptionButton = document.querySelector('.ql-encryption');
         if (this.encryptionButton != null) {
             this.encryptionButton.addEventListener('click', this.encryptDocument.bind(this));
-            //this.encryptionButton.style = "display: none;";
         }
-
 
         //init add user button for adding new users to the documents
         this.encAddUserButton = document.querySelector('.ql-encAddUser');
         if (this.encAddUserButton !== null) {
-            //this.encAddUserButton.style = "display: none;";
             this.dialogs.encAddUserDialog = new AddUserDialog();
             this.dialogs.encAddUserDialog.addDialogToDocument(this.addUser.bind(this));
             this.encAddUserButton.addEventListener('click', () => {
                 this.dialogs.encAddUserDialog.showModal();
             });
         }
+
         //init remove user button for removing users
         this.encDelUserButton = document.querySelector('.ql-encDelUser');
         if (this.encDelUserButton !== null) {
-            //this.encDelUserButton.style = "display: none;";
             this.dialogs.encRemoveUserDialog = new RemoveUserDialog("encAddUserDialog");
             this.dialogs.encRemoveUserDialog.addDialogToDocument(this.removeUser.bind(this));
             this.encDelUserButton.addEventListener('click', () => {
                 this.dialogs.encRemoveUserDialog.showModal();
             });
+        }
+
+	this.logoutButton = document.querySelector('.ql-logout');
+        if (this.logoutButton != null) {
+            this.logoutButton.addEventListener('click', () => {
+                //this.dialogs.encRemoveUserDialog.showModal();
+            });
+            //this.encryptionButton.style = "display: none;";
         }
     }
 
