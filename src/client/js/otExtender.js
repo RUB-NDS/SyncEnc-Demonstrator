@@ -69,6 +69,7 @@ export class OtExtender extends Module {
         this.encryptionButton = null;
         this.encAddUserButton = null;
         this.encDelUserButton = null;
+        this.logoutButton = null;
         quill.on('text-change', this.update.bind(this));
         quill.enable(false);
         if (options.useStaticKeys !== undefined) {
@@ -114,10 +115,7 @@ export class OtExtender extends Module {
 
 	this.logoutButton = document.querySelector('.ql-logout');
         if (this.logoutButton != null) {
-            this.logoutButton.addEventListener('click', () => {
-                //this.dialogs.encRemoveUserDialog.showModal();
-            });
-            //this.encryptionButton.style = "display: none;";
+            this.logoutButton.addEventListener('click', this.logoutUser.bind(this));
         }
     }
 
@@ -220,6 +218,14 @@ export class OtExtender extends Module {
     }
 
     /**
+     * Logout the current user
+     */
+    logoutUser() {
+        this.xmlWrapper.logoutUser();
+	window.location.reload();
+    }
+
+    /**
      * sets the status bar to the given message and color
      * @param message of the status bar
      * @param color of the status bar
@@ -238,6 +244,7 @@ export class OtExtender extends Module {
         this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
         this.encAddUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
         this.encDelUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+	this.logoutButton.style     = OtExtender.BUTTON_STYLE.HIDDEN;
     }
 
     /**
@@ -248,10 +255,12 @@ export class OtExtender extends Module {
             this.encryptionButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
             this.encAddUserButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
             this.encDelUserButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
+            this.logoutButton.style     = OtExtender.BUTTON_STYLE.VISIBLE;
         } else {
             this.encryptionButton.style = OtExtender.BUTTON_STYLE.VISIBLE;
             this.encAddUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
             this.encDelUserButton.style = OtExtender.BUTTON_STYLE.HIDDEN;
+            this.logoutButton.style     = OtExtender.BUTTON_STYLE.HIDDEN;
         }
     }
 

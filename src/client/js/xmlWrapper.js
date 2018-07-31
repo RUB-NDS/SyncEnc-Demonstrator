@@ -262,6 +262,13 @@ class XmlWrapper {
     }
 
     /**
+     * Logout the current user
+     */
+    logoutUser() {
+        this.keyHandler.logoutUser();
+    }
+
+    /**
      * Function generates a new document key and adds or removes the corresponding user from the document. The function
      * will collect all existing users of the current document and will encrypt the new document key with every user's
      * public key.

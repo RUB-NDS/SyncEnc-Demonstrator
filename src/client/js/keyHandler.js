@@ -277,4 +277,12 @@ export default class KeyHandler {
             this.userListPromiseRejected = reject;
         });
     }
+
+    /**
+     * Logout the current user
+     */
+    logoutUser() {
+        del('user')
+        del('privateKey')
+    }
 }
