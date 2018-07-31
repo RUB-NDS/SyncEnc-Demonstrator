@@ -1,6 +1,6 @@
-import StaticKeyData from './staticKeyData'
+import StaticKeyData from './staticKeyData';
 import UserLoginDialog from "./controls/userLoginDialog";
-
+import { get, set, del } from 'idb-keyval';
 
 export default class KeyHandler {
     /**
@@ -113,31 +113,42 @@ export default class KeyHandler {
                 return priKey;
             });
         }
-        if (this._privateKey === null || forceReloadKey === true) {
-            this.isPrivateKeyRequired = true;
-            if (this.isIframeLoaded) {
-                if (this.user === null) {
-                    this.loginDialog.showModal(UserLoginDialog.REQUEST.PRIVATE_KEY);
-                } else {
-                    this._sendPrivateKeyRequestToKeyserver();
-                }
+        return get('user').then((val) => {
+            if (val !== undefined) {
+                this.user = val;
             }
-
-            return new Promise((resolve, reject) => {
-                this.privateKeyPromiseSolved = resolve;
-                this.privateKeyPromiseRejected = reject;
-                //set an Timeout for the request. User has to enter the pin number of his smart card.
-                setTimeout(() => {
-                    reject("Getting the private key from the keyserver timed out after " + 50000 + ' ms!');
-                    this.privateKeyPromiseSolved = null;
-                    this.isPrivateKeyRequested = false;
-                }, 50000);
+        }).then(() => {
+            return get('privateKey').then((val) => {
+                if (val !== undefined) {
+                    this._privateKey = val;
+                }
+            }).then(() => {
+              if (this._privateKey === null || forceReloadKey === true) {
+                  this.isPrivateKeyRequired = true;
+                  if (this.isIframeLoaded) {
+                      if (this.user === null) {
+                          this.loginDialog.showModal(UserLoginDialog.REQUEST.PRIVATE_KEY);
+                      } else {
+                          this._sendPrivateKeyRequestToKeyserver();
+                      }
+                  }
+                  return new Promise((resolve, reject) => {
+                      this.privateKeyPromiseSolved = resolve;
+                      this.privateKeyPromiseRejected = reject;
+                      //set an Timeout for the request. User has to enter the pin number of his smart card.
+                      setTimeout(() => {
+                          reject("Getting the private key from the keyserver timed out after " + 50000 + ' ms!');
+                          this.privateKeyPromiseSolved = null;
+                          this.isPrivateKeyRequested = false;
+                      }, 50000);
+                  });
+              } else {
+                  return new Promise((resolve) => {
+                      resolve(this._privateKey);
+                  });
+              }
+              });
             });
-        } else {
-            return new Promise((resolve) => {
-                resolve(this._privateKey);
-            });
-        }
     }
 
     /**
@@ -194,6 +205,9 @@ export default class KeyHandler {
         if (event.data.data === 'privKey') {
             this.isPrivateKeyRequested = false;
             this._privateKey = event.data.key;
+            //save data in IndexedDB
+            set('user', this.user)
+            set('privateKey', this._privateKey)
             this.privateKeyPromiseSolved(event.data.key);
         }
 
