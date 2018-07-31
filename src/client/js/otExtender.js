@@ -180,8 +180,8 @@ export class OtExtender extends Module {
     encryptionChanged(isEncrypted) {
         if (this.statusBar !== null) {
             if (isEncrypted) {
-                this.statusBar.style.backgroundColor = "green";
-                this.statusBar.textContent = "encrypted";
+                this.statusBar.style.backgroundColor = "lawngreen";
+                this.statusBar.textContent = "Document is encrypted - Logged in as user " + this.xmlWrapper.getUsername();
             } else {
                 this.statusBar.style.backgroundColor = "yellow";
                 this.statusBar.textContent = "unencrypted";

@@ -285,4 +285,11 @@ export default class KeyHandler {
         del('user')
         del('privateKey')
     }
+
+    /**
+     * Getter for the current user name
+     */
+    getUsername() {
+        return this.user;
+    }
 }
