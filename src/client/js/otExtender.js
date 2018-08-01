@@ -6,59 +6,60 @@ import Delta from 'quill-delta';
 import AddUserDialog from './controls/addUserDialog'
 import RemoveUserDialog from "./controls/removeUserDialog";
 
-//register shareDB type for xml encryption
-shareDb.types.register(xmlEnc.type);
-var socket = new WebSocket('wss://' + window.location.host); //new socket
-var connection = new shareDb.Connection(socket); //new connection
+window.otExtenderInit = function () {
+    //register shareDB type for xml encryption
+    shareDb.types.register(xmlEnc.type);
+    var socket = new WebSocket('wss://' + window.location.host); //new socket
+    var connection = new shareDb.Connection(socket); //new connection
 
-window.disconnect = function () {
-    connection.close();
-};
+    window.disconnect = function () {
+        connection.close();
+    };
 
-window.connect = function () {
-    var socket = new WebSocket('wss://' + window.location.host);
-    connection.bindToSocket(socket);
-};
+    window.connect = function () {
+        var socket = new WebSocket('wss://' + window.location.host);
+        connection.bindToSocket(socket);
+    };
 
-//allow different documents
-let documentName = "test";
-if (document.URL.indexOf('#') > 1) {
-    documentName = document.URL.substring(document.URL.indexOf('#') + 1, document.URL.length);
-}
+    //allow different documents
+    let documentName = "test";
+    if (document.URL.indexOf('#') > 1) {
+        documentName = document.URL.substring(document.URL.indexOf('#') + 1, document.URL.length);
+    }
 
-var doc = connection.get(documentName, 'xml-enc');
+    var doc = connection.get(documentName, 'xml-enc');
 
-connection.on('error', function (data) {
-    window.quill.disable();
-    doc.fetch(function (err) {
-        let otExtender = window.quill.getModule('OtExtender');
-        if (err) {
-            otExtender.setStatusBarMessage(err, "red");
-            throw err;
+    connection.on('error', function (data) {
+        window.quill.disable();
+        doc.fetch(function (err) {
+            let otExtender = window.quill.getModule('OtExtender');
+            if (err) {
+                otExtender.setStatusBarMessage(err, "red");
+                throw err;
 
-        } else {
-            otExtender.shareDbDocumentLoaded(doc);
-        }
-    })
-});
-
-//subscribe the document
-new Promise((resolve, reject) => {
-    doc.subscribe(function (err) {
-        if (err) {
-            reject(err);
-        } else {
-            resolve(doc);
-        }
+            } else {
+                otExtender.shareDbDocumentLoaded(doc);
+            }
+        })
     });
-}).then((doc) => {
-    //if the document has been loaded successfully
-    if (doc.data === undefined)
-        doc.create('<root><header><isEncrypted>false</isEncrypted></header><document></document></root>', 'xml-enc');
-    while(window.quill === undefined) {}
-    let otExtender = window.quill.getModule('OtExtender');
-    otExtender.shareDbDocumentLoaded(doc);
-});
+
+    //subscribe the document
+    new Promise((resolve, reject) => {
+        doc.subscribe(function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(doc);
+            }
+        });
+    }).then((doc) => {
+        //if the document has been loaded successfully
+        if (doc.data === undefined)
+            doc.create('<root><header><isEncrypted>false</isEncrypted></header><document></document></root>', 'xml-enc');
+        let otExtender = window.quill.getModule('OtExtender');
+        otExtender.shareDbDocumentLoaded(doc);
+    });
+}
 
 export class OtExtender extends Module {
     constructor(quill, options) {
