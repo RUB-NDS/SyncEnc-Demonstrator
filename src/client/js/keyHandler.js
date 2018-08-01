@@ -241,19 +241,19 @@ export default class KeyHandler {
             this.otExtenderModule.setStatusBarMessage("Error: " + event.data.info +
                 " Please reload the page and try it again.", "#E13737");
             if (this.privateKeyPromiseRejected != null) {
-                this.privateKeyPromiseRejected();
+                this.privateKeyPromiseRejected(event.data.info);
                 this.privateKeyPromiseSolved = null;
                 this.privateKeyPromiseRejected = null;
             }
 
             if (this.publicKeyPromiseRejected !== null) {
-                this.publicKeyPromiseRejected();
+                this.publicKeyPromiseRejected(event.data.info);
                 this.publicKeyPromiseSolved = null;
                 this.publicKeyPromiseRejected = null;
             }
 
             if (this.userListPromiseRejected != null) {
-                this.userListPromiseRejected();
+                this.userListPromiseRejected(event.data.info);
                 this.userListPromiseRejected = null;
                 this.userListPromiseResolved = null;
             }

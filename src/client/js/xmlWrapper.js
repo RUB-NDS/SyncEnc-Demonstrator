@@ -227,6 +227,14 @@ class XmlWrapper {
                         //console.log(this.doc.data);
                     });
                 });
+            }).catch((error) => {
+              if(error === "noPubKeyFound") {
+                  let otExtender = window.quill.getModule('OtExtender');
+                  otExtender.setStatusBarMessage("Not registered yet, please login to create an account", "yellow");
+                  return this.keyHandler.loadPrivateKey().then((privKey) => {
+                    return this.encryptDocument();
+                  });
+              }
             });
         });
     }
