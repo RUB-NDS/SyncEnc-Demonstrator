@@ -165,7 +165,7 @@ export class OtExtender extends Module {
      */
     remoteUpdate(op) {
         let delta = new Delta(op);
-        this.quill.updateContents(delta);
+        this.quill.updateContents(delta, 'api');
     }
 
     /**
