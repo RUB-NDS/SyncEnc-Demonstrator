@@ -28,6 +28,7 @@ window.otExtenderInit = function () {
     }
 
     var doc = connection.get(documentName, 'xml-enc');
+    window.doc = doc;
 
     connection.on('error', function (data) {
         window.quill.disable();
