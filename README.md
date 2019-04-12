@@ -3,7 +3,7 @@ This project extends the rich-text editor quill by a module for collaborative en
 ## Prerequisites
 The server runs on HTTPS, therefore a certificate is required. Without providing a private key and the corresponding certificate the server will not start.
 
-The private key (`privkey.pem`) and the certificate (`cert.pem`) must be copied into the root directory of the `dpreikschat-syncenc` folder. Afterwards the server can be started with npm start.  
+The private key (`privkey.pem`) and the certificate (`cert.pem`) must be copied into the root directory of the `SyncEnc-Demonstrator` folder. Afterwards the server can be started with npm start.
 ## Run application
 install npm
 
@@ -16,7 +16,7 @@ create installation folder %installdir% and clone the xml-enc plugin for sharedb
     git clone https://github.com/RUB-NDS/ottype-xml-enc.git
 clone the quill with encryption repository
 
-    git clone https://github.com/RUB-NDS/dpreikschat-syncenc.git
+    git clone https://github.com/RUB-NDS/SyncEnc-Demonstrator.git
 install ottype-xml-enc
 
     cd ottype-xml-enc
@@ -24,7 +24,7 @@ install ottype-xml-enc
     cd ..
 install quill with encryption
 
-    cd dpreikschat-syncenc
+    cd SyncEnc-Demonstrator
     npm install
   
 start project 
